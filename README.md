@@ -24,7 +24,7 @@ Then restart udev:
 
 # Version Name #
 
-v<version>-<antenna type><audio output><station select><configuration location>
+`v<version>-<antenna type><audio output><station select><configuration location>`
 
 - version: version number - corresponds with firmware
 - antennta type: 
