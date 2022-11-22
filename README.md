@@ -16,6 +16,8 @@ Create a udev rule so that it is not necessary to set permissions with each conn
 
 `ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"`
 
+`ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"`
+
 Then restart udev:
 
 `sudo systemctl restart udev`
@@ -39,6 +41,5 @@ v<version>-<antenna type><audio output><station select><configuration location>
     R) remote
 
 # Useful Resources #
-- Espressif ESP32 hardware design guidelines https://www.espressif.com/sites/default/files/documentation/esp32_hardware_design_guidelines_en.pdf
-- Schematics for the ESP32 S3 dev board https://dl.espressif.com/dl/schematics/SCH_ESP32-S3-DevKitC-1_V1.1_20220413.pdf
-- Arduino-ESP32 Documentation https://docs.espressif.com/projects/arduino-esp32/en/latest/getting_started.html 
+
+Resources can be found in the READMEs of each subfolder (ex: hardware/README.md, firmware/README.md).
