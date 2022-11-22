@@ -12,11 +12,12 @@ The ESP32 S3's onboard OTG USB does not appear to recieve the ESP32's debug mess
 
 ### Linux ###
 
-Create a udev rule so that it is not necessary to set permissions with each connection, by creating this file `/etc/udev/rules.d/99-esp32s3.rules` and adding this line:
+Create a udev rule so that it is not necessary to set permissions with each connection, by creating this file `/etc/udev/rules.d/99-esp32s3.rules` and adding this lines:
 
-`ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"`
-
-`ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"`
+```
+ATTRS{idVendor}=="303a", ATTRS{idProduct}=="1001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"
+ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{ID_MM_PORT_IGNORE}="1"
+```
 
 Then restart udev:
 
