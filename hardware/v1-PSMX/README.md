@@ -19,3 +19,8 @@ Purchase Link: https://www.mouser.com/ProductDetail/BI-Technologies-TT-Electroni
 
 Datasheet: https://www.mouser.com/datasheet/2/54/pta-778345.pdf  
 Purchase Link:  https://www.mouser.com/ProductDetail/Bourns/PTA3043-2015DPB104?qs=zRGnDeWDVj0fVt3rAxibYA%3D%3D
+
+## CLMVC-FKC-CGJJM569aBB7a343 - RGB LED ##
+
+Datasheet: https://www.mouser.com/datasheet/2/723/1273_CLMVC_FKA-2326704.pdf  
+Purchase Link: https://www.mouser.com/ProductDetail/Cree-LED/CLMVC-FKC-CGJJM569aBB7a343?qs=1mbolxNpo8epafm4p5CBBQ%3D%3D
