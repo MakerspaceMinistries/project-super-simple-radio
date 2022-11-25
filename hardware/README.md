@@ -25,6 +25,12 @@ The footprint and schematic for the CLMVC-FKC-CGJJM569aBB7a343 wasn't available,
 
 https://componentsearchengine.com/part-view/CLMVC-FKA-CL1D1L71BB7C3C3/Wolfspeed
 
+### 3.3v Regulator ###
+
+This footprint and schematic are for the same line as the AZ1084CD-3.3TRG1
+
+https://componentsearchengine.com/part-view/AZ1084CD-ADJTRG1/Diodes%20Inc.
+
 # Resources #
 
 Many of the circuits required for the radio are also found on the ESP32 S3 Dev Kit. The schematics are helpful for reference.
