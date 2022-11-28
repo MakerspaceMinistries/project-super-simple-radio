@@ -33,7 +33,7 @@ https://componentsearchengine.com/part-view/AZ1084CD-ADJTRG1/Diodes%20Inc.
 
 # Resources #
 
-Many of the circuits required for the radio are also found on the ESP32 S3 Dev Kit. The schematics are helpful for reference.
+Many of the circuits required for the radio are also found on the ESP32 S3 Dev Kits & ESP32 S3 Korvo Dev Board, . The schematics are helpful for reference.
 
 - Espressif datasheet for the ESP32-S3-WROOM-1/U module https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf
     - Page 25: example schematics
@@ -43,3 +43,4 @@ Many of the circuits required for the radio are also found on the ESP32 S3 Dev K
 - ESP32 S3 Dev Kit Schematics https://dl.espressif.com/dl/schematics/SCH_ESP32-S3-DevKitC-1_V1.1_20220413.pdf
 - ESP32 S3 Dev Kit PCB Layout: https://dl.espressif.com/dl/schematics/PCB_ESP32-S3-DevKitC-1_V1.1_20220429.pdf
 - Other Dev Kit resources: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html#related-documents
+- ESP32 S3 Korvo (an audio dev board from Espressif): https://docs.espressif.com/projects/esp-adf/en/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html
