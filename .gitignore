@@ -1,2 +1,10 @@
 
 hardware/hardware-backups/
+
+hardware/v1-PSMX/v1-PSMX-backups/
+
+hardware/v1-PSMX/fp-info-cache
+
+hardware/v1-PSMX/#auto_saved_files#
+
+*.kicad_sch-bak
