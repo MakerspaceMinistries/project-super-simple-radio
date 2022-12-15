@@ -30,7 +30,7 @@ Purchase: https://www.mouser.com/ProductDetail/Cree-LED/CLMVC-FKC-CGJJM569aBB7a3
 ## GG060305100N2P - ESD Suppressor ##
 
 ***IMPORTANT*** & ***TODO***  
-*The selection of this ESD suppressor may be wrong. The ESP32 S3 Dev Kit and the ESP32 S3 Korvo both use the LESD5D5.0CT1G, which is no longer available. The GG060305100N2P appears to have similar specs, but this should be verified by someone with who is knowledgeable*
+*The selection of this ESD suppressor may be wrong. The ESP32 S3 Dev Kit and the ESP32 S3 Korvo both use the LESD5D5.0CT1G, which is no longer available. The GG060305100N2P appears to have similar specs, but this should be verified by someone with who is more knowledgeable*
 
 Datasheet: https://www.mouser.com/datasheet/2/40/AVX_GiGuard-2401264.pdf  
 Purchase: https://www.mouser.com/ProductDetail/KYOCERA-AVX/GG060305100N2P?qs=QNEnbhJQKvZ38qL0Ea5hYg%3D%3D  
