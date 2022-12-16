@@ -121,9 +121,9 @@
       "track_widths": [
         0.0,
         0.2,
-        0.3,
-        0.4,
-        0.5
+        0.6,
+        0.8,
+        1.0
       ],
       "via_dimensions": [
         {
@@ -376,6 +376,109 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.25,
+        "via_diameter": 0.8,
+        "via_drill": 0.4,
+        "wire_width": 6.0
+      },
+      {
+        "bus_width": 12.0,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "LED",
+        "nets": [
+          "/LED_BLUE_GPIO6",
+          "/LED_GREEN_GPIO5",
+          "/LED_RED_GPIO4",
+          "Net-(LED1-Pad2)",
+          "Net-(LED1-Pad3)",
+          "Net-(LED1-Pad4)"
+        ],
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.3,
+        "via_diameter": 0.8,
+        "via_drill": 0.4,
+        "wire_width": 6.0
+      },
+      {
+        "bus_width": 12.0,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Power",
+        "nets": [
+          "+3.3V",
+          "+5V",
+          "GND"
+        ],
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.8,
+        "via_diameter": 0.8,
+        "via_drill": 0.4,
+        "wire_width": 6.0
+      },
+      {
+        "bus_width": 12.0,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Signal",
+        "nets": [
+          "/BCLK_GPIO13",
+          "/DIN_GPIO12",
+          "/GAIN_SLOT",
+          "/GPIO19_USB_D-",
+          "/GPIO20_USB_D+",
+          "/LRCLK_GPIO14",
+          "/RESET",
+          "/RST_TO_PRGM",
+          "/SD_MODE_GPIO11",
+          "/S_POT_GPIO02",
+          "/U0RXD_TX",
+          "/U0TXD_RX",
+          "/V_POT_GPIO08",
+          "Net-(IC2-Pad4)"
+        ],
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.2,
+        "via_diameter": 0.4,
+        "via_drill": 0.2,
+        "wire_width": 6.0
+      },
+      {
+        "bus_width": 12.0,
+        "clearance": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Speaker",
+        "nets": [
+          "/LEFT_SPK+",
+          "/LEFT_SPK-",
+          "/RIGHT_SPK+",
+          "/RIGHT_SPK-"
+        ],
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": 0.4,
         "via_diameter": 0.8,
         "via_drill": 0.4,
         "wire_width": 6.0
