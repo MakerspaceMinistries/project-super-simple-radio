@@ -1,3 +1,21 @@
+# Version Name #
+
+`v<version>-<antenna type><audio output><station select><configuration location>`
+
+- version: version number - corresponds with firmware
+- antennta type: 
+    O) onboard ESP32 antenna
+    U) external antenna (following Espressif's convention)
+- audio output:
+    S) speakers
+    L) line out
+- station select:
+    S) single station (no selector)
+    M) multi station
+- configuration location
+    H) hardcoded
+    R) remote
+
 # Overview #
 
 ## Connecting to the radio for programming and debugging ##
@@ -22,25 +40,3 @@ ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", ENV{ID_MM_DEVICE
 Then restart udev:
 
 `sudo systemctl restart udev`
-
-# Version Name #
-
-`v<version>-<antenna type><audio output><station select><configuration location>`
-
-- version: version number - corresponds with firmware
-- antennta type: 
-    O) onboard ESP32 antenna
-    P) external antenna
-- audio output:
-    S) speakers
-    L) line out
-- station select:
-    S) single station (no selector)
-    M) multi station
-- configuration location
-    H) hardcoded
-    R) remote
-
-# Useful Resources #
-
-Resources can be found in the READMEs of each subfolder (ex: hardware/README.md, firmware/README.md).
