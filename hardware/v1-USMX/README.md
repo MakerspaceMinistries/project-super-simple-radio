@@ -109,7 +109,7 @@ Footprint: Built-in 0805 footprint
 
 ## Tactile Switches - Reset and Reset & Program ##
 
-Datasheet: https://www.mouser.com/datasheet/2/240/pts526-3050698.pdf
+Datasheet: https://www.mouser.com/datasheet/2/240/pts526-3050698.pdf 
 Purchase: https://www.mouser.com/ProductDetail/CK/PTS526-SM08-SMTR2-LFS?qs=UXgszm6BlbFgRZzlfGAMFg%3D%3D
 Footprint/Shematic: https://componentsearchengine.com/part-view/PTS526%20SM08%20SMTR2%20LFS/C%20%26%20K%20COMPONENTS
 
@@ -123,6 +123,9 @@ Footprint/Schematic: https://componentsearchengine.com/part-view/10118192-0002LF
 # Other Hardware Options #
 
 These are options that were not used, but may be useful for future designs.
+
+## Speakers ##
+https://www.aliexpress.us/item/2251832407677186.html?spm=a2g0o.order_list.order_list_main.99.21ef1802j2SpLD&gatewayAdapt=glo2usa4itemAdapt&_randl_shipto=US
 
 ## 90 Tactile Switch - Reset ##
 https://www.mouser.com/ProductDetail/E-Switch/TL3336AF160Q?qs=iLbezkQI%252Bshf0NMs3%252BGhxA%3D%3D
