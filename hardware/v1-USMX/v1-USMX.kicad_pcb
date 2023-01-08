@@ -2204,7 +2204,7 @@
   (gr_text "0.1uF" (at 154.94 108.458) (layer "F.SilkS") (tstamp b6dde529-7173-41d4-8222-e7df29f026a6)
     (effects (font (size 0.381 0.381) (thickness 0.09525)))
   )
-  (gr_text "v1-PSMX.beta-1" (at 180.975 127.889) (layer "F.SilkS") (tstamp bb9f539b-8b06-4907-86f5-353ffa57b3a8)
+  (gr_text "v1-USMX.beta-1" (at 180.975 127.889) (layer "F.SilkS") (tstamp bb9f539b-8b06-4907-86f5-353ffa57b3a8)
     (effects (font (size 1 1) (thickness 0.15)))
   )
   (gr_text "GND" (at 143.764 85.344) (layer "F.SilkS") (tstamp bfa8ebab-41b8-4088-9009-111580f933da)
