@@ -3,9 +3,9 @@
 
 #define FIRMWARE_VERSION "v0.0"
 
-#define DEFAULT_STATION_LIST_URL ""
+#define DEFAULT_REMOTE_STATION_LIST_URL ""
 #define URL_SIZE 2048
-#define DEFAULT_STATION_LIST_ENABLED false
+#define DEFAULT_REMOTE_STATION_LIST_ENABLED false
 #define DEFAULT_HAS_CHANNEL_POT false
 #define DEFAULT_PCB_VERSION ""
 #define PCB_VERSION_SIZE 32
@@ -40,8 +40,8 @@ Preferences preferences;
 
 // Name Struct with the config
 struct Config {
-  char remoteStationListURL[URL_SIZE] = DEFAULT_STATION_LIST_URL;
-  bool remoteStationListEnabled = DEFAULT_STATION_LIST_ENABLED;
+  char remoteStationListURL[URL_SIZE] = DEFAULT_REMOTE_STATION_LIST_URL;
+  bool remoteStationListEnabled = DEFAULT_REMOTE_STATION_LIST_ENABLED;
   char rID[R_ID_SIZE] = DEFAULT_R_ID;
   bool hasChannelPot = DEFAULT_HAS_CHANNEL_POT;
   char pcbVersion[PCB_VERSION_SIZE] = DEFAULT_PCB_VERSION;
@@ -56,7 +56,7 @@ Config config;
 
 void getConfigFromPreferences() {
   preferences.getBytes("remoteStationListURL", config.remoteStationListURL, URL_SIZE);
-  config.remoteStationListEnabled = preferences.getBool("remoteStationListEnabled", DEFAULT_STATION_LIST_ENABLED);
+  config.remoteStationListEnabled = preferences.getBool("remoteStationListEnabled", DEFAULT_REMOTE_STATION_LIST_ENABLED);
   preferences.getBytes("rID", config.rID, R_ID_SIZE);
   config.hasChannelPot = preferences.getBool("hasChannelPot", DEFAULT_HAS_CHANNEL_POT);
   preferences.getBytes("pcbVersion", config.pcbVersion, PCB_VERSION_SIZE);
