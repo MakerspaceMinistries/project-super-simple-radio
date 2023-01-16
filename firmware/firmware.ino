@@ -1,16 +1,23 @@
+/*
+
+Example serial message for configuring the radio.
+{ "remoteListURL": "remoteListURL", "remoteList": true, "rID":"rID", "hasChannelPot":true, "pcbVersion":"pcbVersion", "stnOneURL":"stnOneURL", "stnTwoURL":"stnTwoURL", "stnThreeURL":"stnThreeURL", "stationCount":2, "maxStationCount":3}
+
+Example message for resetting the stored preferences and restarting the ESP.
+{"clearPreferences": true}
+
+*/
+
 #include <ArduinoJson.h>
 #include <Preferences.h>
 
 #define FIRMWARE_VERSION "v0.0"
 
 #define DEFAULT_REMOTE_STATION_LIST_URL ""
-#define URL_SIZE 2048
 #define DEFAULT_REMOTE_STATION_LIST_ENABLED false
 #define DEFAULT_HAS_CHANNEL_POT false
 #define DEFAULT_PCB_VERSION ""
-#define PCB_VERSION_SIZE 32
 #define DEFAULT_R_ID ""
-#define R_ID_SIZE 64
 
 #define DEFAULT_STATION_ONE_URL ""
 #define DEFAULT_STATION_TWO_URL ""
@@ -40,14 +47,14 @@ Preferences preferences;
 
 // Name Struct with the config
 struct Config {
-  char remoteStationListURL[URL_SIZE] = DEFAULT_REMOTE_STATION_LIST_URL;
-  bool remoteStationListEnabled = DEFAULT_REMOTE_STATION_LIST_ENABLED;
-  char rID[R_ID_SIZE] = DEFAULT_R_ID;
+  String remoteListURL = DEFAULT_REMOTE_STATION_LIST_URL;
+  bool remoteList = DEFAULT_REMOTE_STATION_LIST_ENABLED;
+  String rID = DEFAULT_R_ID;
   bool hasChannelPot = DEFAULT_HAS_CHANNEL_POT;
-  char pcbVersion[PCB_VERSION_SIZE] = DEFAULT_PCB_VERSION;
-  char stationOneURL[URL_SIZE] = DEFAULT_STATION_ONE_URL;
-  char stationTwoURL[URL_SIZE] = DEFAULT_STATION_TWO_URL;
-  char stationThreeURL[URL_SIZE] = DEFAULT_STATION_THREE_URL;
+  String pcbVersion = DEFAULT_PCB_VERSION;
+  String stnOneURL = DEFAULT_STATION_ONE_URL;
+  String stnTwoURL = DEFAULT_STATION_TWO_URL;
+  String stnThreeURL = DEFAULT_STATION_THREE_URL;
   int stationCount = DEFAULT_STATION_COUNT;
   int maxStationCount = DEFAULT_MAX_STATION_COUNT;
 };
@@ -55,29 +62,34 @@ struct Config {
 Config config;
 
 void getConfigFromPreferences() {
-  preferences.getBytes("remoteStationListURL", config.remoteStationListURL, URL_SIZE);
-  config.remoteStationListEnabled = preferences.getBool("remoteStationListEnabled", DEFAULT_REMOTE_STATION_LIST_ENABLED);
-  preferences.getBytes("rID", config.rID, R_ID_SIZE);
+  // IMPORTANT the preferences library accepts keys up to 15 characters. Larger keys can be passed and no error will be thrown, but strange things may happen.
+  preferences.begin("config", false);
+  config.remoteListURL = preferences.getString("remoteListURL", DEFAULT_REMOTE_STATION_LIST_URL);
+  config.remoteList = preferences.getBool("remoteList", DEFAULT_REMOTE_STATION_LIST_ENABLED);
+  config.rID = preferences.getString("rID", DEFAULT_R_ID);
   config.hasChannelPot = preferences.getBool("hasChannelPot", DEFAULT_HAS_CHANNEL_POT);
-  preferences.getBytes("pcbVersion", config.pcbVersion, PCB_VERSION_SIZE);
-  preferences.getBytes("stationOneURL", config.stationOneURL, URL_SIZE);
-  preferences.getBytes("stationTwoURL", config.stationTwoURL, URL_SIZE);
-  preferences.getBytes("stationThreeURL", config.stationThreeURL, URL_SIZE);
+  config.pcbVersion = preferences.getString("pcbVersion", DEFAULT_PCB_VERSION).c_str();
+  config.stnOneURL = preferences.getString("stnOneURL", DEFAULT_STATION_ONE_URL).c_str();
+  config.stnTwoURL = preferences.getString("stnTwoURL", DEFAULT_STATION_TWO_URL).c_str();
+  config.stnThreeURL = preferences.getString("stnThreeURL", DEFAULT_STATION_THREE_URL).c_str();
   config.stationCount = preferences.getInt("stationCount", DEFAULT_STATION_COUNT);
   config.maxStationCount = preferences.getInt("maxStationCount", DEFAULT_MAX_STATION_COUNT);
+  preferences.end();
 }
 
 void putConfigToPreferences() {
-  preferences.putBytes("remoteStationListURL", config.remoteStationListURL, URL_SIZE);
-  preferences.putBool("remoteStationListEnabled", config.remoteStationListEnabled);
-  preferences.putBytes("rID", config.rID, R_ID_SIZE);
+  preferences.begin("config", false);
+  preferences.putString("remoteListURL", config.remoteListURL);
+  preferences.putBool("remoteList", config.remoteList);
+  preferences.putString("rID", config.rID);
   preferences.putBool("hasChannelPot", config.hasChannelPot);
-  preferences.putBytes("pcbVersion", config.pcbVersion, PCB_VERSION_SIZE);
-  preferences.putBytes("stationOneURL", config.stationOneURL, URL_SIZE);
-  preferences.putBytes("stationTwoURL", config.stationTwoURL, URL_SIZE);
-  preferences.putBytes("stationThreeURL", config.stationThreeURL, URL_SIZE);
+  preferences.putString("pcbVersion", config.pcbVersion);
+  preferences.putString("stnOneURL", config.stnOneURL);
+  preferences.putString("stnTwoURL", config.stnTwoURL);
+  preferences.putString("stnThreeURL", config.stnThreeURL);
   preferences.putInt("stationCount", config.stationCount);
   preferences.putInt("maxStationCount", config.maxStationCount);
+  preferences.end();
 }
 
 int getVolume() {
@@ -109,14 +121,14 @@ void debugHandleSerialInput() {
       serializeJson(doc, Serial);
       Serial.println("");
 
-      strlcpy(config.remoteStationListURL, doc["remoteStationListURL"] | config.remoteStationListURL, sizeof(config.remoteStationListURL));
-      config.remoteStationListEnabled = doc["remoteStationListEnabled"] | config.remoteStationListEnabled;
-      strlcpy(config.rID, doc["rID"] | config.rID, sizeof(config.rID));
+      config.remoteListURL = doc["remoteListURL"] | config.remoteListURL;
+      config.remoteList = doc["remoteList"] | config.remoteList;
+      config.rID = doc["rID"] | config.rID;
       config.hasChannelPot = doc["hasChannelPot"];
-      strlcpy(config.pcbVersion, doc["pcbVersion"] | config.pcbVersion, sizeof(config.pcbVersion));
-      strlcpy(config.stationOneURL, doc["stationOneURL"] | config.stationOneURL, sizeof(config.stationOneURL));
-      strlcpy(config.stationTwoURL, doc["stationTwoURL"] | config.stationTwoURL, sizeof(config.stationTwoURL));
-      strlcpy(config.stationThreeURL, doc["stationThreeURL"] | config.stationThreeURL, sizeof(config.stationThreeURL));
+      config.pcbVersion = doc["pcbVersion"] | config.pcbVersion;
+      config.stnOneURL = doc["stnOneURL"] | config.stnOneURL;
+      config.stnTwoURL = doc["stnTwoURL"] | config.stnTwoURL;
+      config.stnThreeURL = doc["stnThreeURL"] | config.stnThreeURL;
       config.stationCount = doc["stationCount"];
       config.maxStationCount = doc["maxStationCount"];
 
@@ -124,7 +136,9 @@ void debugHandleSerialInput() {
 
       if (doc["clearPreferences"]) {
         bool cleared = preferences.clear();
-        Serial.println("Clearing preferences, be sure to restart for this to take effect.");
+        Serial.println("Clearing preferences, restarting for this to take effect.");
+        preferences.end();
+        ESP.restart();
       }
 
       preferences.end();
@@ -136,28 +150,18 @@ void debugHandleSerialInput() {
 
 void debugPrintConfigToSerial() {
   Serial.printf("FIRMWARE_VERSION=%s\n", FIRMWARE_VERSION);
-  Serial.printf("config.remoteStationListURL=%s\n", config.remoteStationListURL);
-  Serial.printf("config.remoteStationListEnabled=%d\n", config.remoteStationListEnabled);
+  Serial.printf("config.remoteListURL=%s\n", config.remoteListURL);
+  Serial.printf("config.remoteList=%d\n", config.remoteList);
   Serial.printf("config.rID=%s\n", config.rID);
   Serial.printf("config.hasChannelPot=%d\n", config.hasChannelPot);
-  Serial.printf("config.stationOneURL=%s\n", config.stationOneURL);
-  Serial.printf("config.stationTwoURL=%s\n", config.stationTwoURL);
-  Serial.printf("config.stationThreeURL=%s\n", config.stationThreeURL);
+  Serial.printf("config.stnOneURL=%s\n", config.stnOneURL);
+  Serial.printf("config.stnTwoURL=%s\n", config.stnTwoURL);
+  Serial.printf("config.stnThreeURL=%s\n", config.stnThreeURL);
   Serial.printf("config.stationCount=%d\n", config.stationCount);
   Serial.printf("config.maxStationCount=%d\n", config.maxStationCount);
 }
 
 void setup() {
-  preferences.begin("config", false);
-
-  analogReadResolution(12);
-
-  pinMode(LED_PIN_RED, OUTPUT);
-  pinMode(LED_PIN_GREEN, OUTPUT);
-  pinMode(LED_PIN_BLUE, OUTPUT);
-
-  setLightsRGB(LED_ON, LED_OFF, LED_OFF);
-
   debugMode = setDebugMode();
   // debugMode = true;
 
@@ -167,8 +171,18 @@ void setup() {
     setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
     delay(100);
     setLightsRGB(LED_ON, LED_OFF, LED_OFF);
-    debugPrintConfigToSerial();
   }
+
+  getConfigFromPreferences();
+  if (debugMode) debugPrintConfigToSerial();
+
+  analogReadResolution(12);
+
+  pinMode(LED_PIN_RED, OUTPUT);
+  pinMode(LED_PIN_GREEN, OUTPUT);
+  pinMode(LED_PIN_BLUE, OUTPUT);
+
+  setLightsRGB(LED_ON, LED_OFF, LED_OFF);
 }
 
 void loop() {
