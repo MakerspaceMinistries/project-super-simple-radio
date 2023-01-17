@@ -6,7 +6,19 @@ Example serial message for configuring the radio.
 Example message for resetting the stored preferences and restarting the ESP.
 {"clearPreferences": true}
 
+States: 
+  - Red                 error
+  - Red (blinking)      error (blinking)
+  - Yellow              warning
+  - Yellow              warning (blinking)
+  - Green               success
+  - Green (blinking)    success (blinking)
+  - Blue                info
+  - Blue (blinking)     info (blinking)
+
 TODO:
+  - Set up a way to measure loops per seconds - debugLPS. 
+  - Set up a timer to set the volume.
   - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
   - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
 
@@ -33,6 +45,16 @@ TODO:
 #define LED_ON LOW
 #define LED_OFF HIGH
 
+#define LED_STATUS_OFF -1
+#define LED_STATUS_SUCCESS 0
+#define LED_STATUS_SUCCESS_BLINKING 1
+#define LED_STATUS_INFO 2
+#define LED_STATUS_INFO_BLINKING 3
+#define LED_STATUS_WARNING 4
+#define LED_STATUS_WARNING_BLINKING 5
+#define LED_STATUS_ERROR 6
+#define LED_STATUS_ERROR_BLINKING 7
+
 #define PIN_CHANNEL_POT 2
 #define PIN_LED_RED 4
 #define PIN_LED_GREEN 5
@@ -50,6 +72,9 @@ TODO:
 
 bool debugMode = false;
 unsigned long lastDebugStatusUpdate = 0;
+
+hw_timer_t *timerBlink = NULL;
+int rgbToBlink[] = { 0, 0, 0 };
 
 Preferences preferences;
 
@@ -102,12 +127,6 @@ void putConfigToPreferences() {
 int getVolume() {
   int volumeRaw = analogRead(PIN_VOLUME_POT);
   return map(volumeRaw, 0, 4095, VOLUME_MIN, VOLUME_MAX);
-}
-
-void setLightsRGB(int r, int g, int b) {
-  digitalWrite(PIN_LED_RED, r);
-  digitalWrite(PIN_LED_GREEN, g);
-  digitalWrite(PIN_LED_BLUE, b);
 }
 
 bool setDebugMode() {
@@ -169,7 +188,7 @@ void debugPrintConfigToSerial() {
 }
 
 void configModeCallback(WiFiManager *myWiFiManager) {
-  setLightsRGB(LED_ON, LED_ON, LED_OFF);
+  setLEDStatus(LED_STATUS_WARNING_BLINKING);
   if (debugMode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());
@@ -178,22 +197,107 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   }
 }
 
+void blinkCallback() {
+  // DO NOT change any variables here (that are from outside this scope)
+  int pins[3] = { PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE };
+  for (int i; i < 3; i++) {
+    if (rgbToBlink[i] == 1) {
+      int state = digitalRead(pins[i]);
+      digitalWrite(pins[i], !state);
+    }
+  }
+}
+
+void setRGBToBlink(int r, int g, int b) {
+  rgbToBlink[0] = r;
+  rgbToBlink[1] = g;
+  rgbToBlink[2] = b;
+}
+
+void blinkStart() {
+  timerAlarmEnable(timerBlink);
+}
+
+void blinkTimerInit() {
+  timerBlink = timerBegin(1, 80, true);
+  timerAttachInterrupt(timerBlink, blinkCallback, true);
+  timerAlarmWrite(timerBlink, 600000, true);
+}
+
+void blinkStop() {
+  timerAlarmDisable(timerBlink);
+  setRGBToBlink(0, 0, 0);
+}
+
+void setLEDStatus(int status) {
+  setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
+  blinkStop();
+  switch (status) {
+    case LED_STATUS_OFF:
+      // This is taken care of above.
+      break;
+    case LED_STATUS_SUCCESS:
+      setLightsRGB(LED_OFF, LED_ON, LED_OFF);
+      break;
+    case LED_STATUS_SUCCESS_BLINKING:
+      setLightsRGB(LED_OFF, LED_ON, LED_OFF);
+      setRGBToBlink(0, 1, 0);
+      blinkStart();
+      break;
+    case LED_STATUS_INFO:
+      setLightsRGB(LED_OFF, LED_OFF, LED_ON);
+      break;
+    case LED_STATUS_INFO_BLINKING:
+      setLightsRGB(LED_OFF, LED_OFF, LED_ON);
+      setRGBToBlink(0, 0, 1);
+      blinkStart();
+      break;
+    case LED_STATUS_WARNING:
+      setLightsRGB(LED_ON, LED_ON, LED_OFF);
+      break;
+    case LED_STATUS_WARNING_BLINKING:
+      setLightsRGB(LED_ON, LED_ON, LED_OFF);
+      setRGBToBlink(1, 1, 0);
+      blinkStart();
+      break;
+    case LED_STATUS_ERROR:
+      setLightsRGB(LED_ON, LED_OFF, LED_OFF);
+      break;
+    case LED_STATUS_ERROR_BLINKING:
+      setLightsRGB(LED_ON, LED_OFF, LED_OFF);
+      setRGBToBlink(1, 0, 0);
+      blinkStart();
+      break;
+  }
+}
+
+void setLightsRGB(int r, int g, int b) {
+  digitalWrite(PIN_LED_RED, r);
+  digitalWrite(PIN_LED_GREEN, g);
+  digitalWrite(PIN_LED_BLUE, b);
+}
+
 void setup() {
 
   // setup lights
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_LED_GREEN, OUTPUT);
   pinMode(PIN_LED_BLUE, OUTPUT);
-  setLightsRGB(LED_OFF, LED_OFF, LED_ON);
+
+  blinkTimerInit();
+  setLEDStatus(LED_STATUS_INFO_BLINKING);
+
+  // debugMode = setDebugMode();
+  debugMode = true;
 
   analogReadResolution(12);
 
   if (debugMode) {
     Serial.begin(115200);
     Serial.println("DEBUG MODE ON");
-    setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
+    setLEDStatus(LED_STATUS_SUCCESS);
     delay(100);
-    setLightsRGB(LED_OFF, LED_OFF, LED_ON);
+    setLEDStatus(LED_STATUS_INFO_BLINKING);
   }
 
   getConfigFromPreferences();
@@ -207,14 +311,14 @@ void setup() {
   res = wifiManager.autoConnect("Radio Setup");
   if (!res) {
     if (debugMode) Serial.println("Failed to connect or hit timeout");
-    // This is a hard stop - show a red light.
-    setLightsRGB(LED_ON, LED_OFF, LED_OFF);
-    delay(2000);
+    // This is a hard stop
+    setLEDStatus(LED_STATUS_ERROR_BLINKING);
+    delay(5000);
     ESP.restart();
   }
 
   // Turn lights off if it connects to the remote list server, or does not need to.
-  setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
+  setLEDStatus(LED_STATUS_OFF);
 }
 
 void loop() {
