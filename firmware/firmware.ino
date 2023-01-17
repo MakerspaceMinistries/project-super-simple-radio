@@ -6,10 +6,15 @@ Example serial message for configuring the radio.
 Example message for resetting the stored preferences and restarting the ESP.
 {"clearPreferences": true}
 
+TODO:
+  - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
+  - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
+
 */
 
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <WiFiManager.h>
 
 #define FIRMWARE_VERSION "v0.0"
 
@@ -163,28 +168,53 @@ void debugPrintConfigToSerial() {
   Serial.printf("config.maxStationCount=%d\n", config.maxStationCount);
 }
 
-void setup() {
-  debugMode = setDebugMode();
-  // debugMode = true;
+void configModeCallback(WiFiManager *myWiFiManager) {
+  setLightsRGB(LED_ON, LED_ON, LED_OFF);
+  if (debugMode) {
+    Serial.println("Entered config mode");
+    Serial.println(WiFi.softAPIP());
+    Serial.print("Created config portal AP ");
+    Serial.println(myWiFiManager->getConfigPortalSSID());
+  }
+}
 
-  analogReadResolution(12);
+void setup() {
+
+  // setup lights
   pinMode(PIN_LED_RED, OUTPUT);
   pinMode(PIN_LED_GREEN, OUTPUT);
   pinMode(PIN_LED_BLUE, OUTPUT);
+  setLightsRGB(LED_OFF, LED_OFF, LED_ON);
+
+  analogReadResolution(12);
 
   if (debugMode) {
     Serial.begin(115200);
     Serial.println("DEBUG MODE ON");
     setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
     delay(100);
-    setLightsRGB(LED_ON, LED_OFF, LED_OFF);
+    setLightsRGB(LED_OFF, LED_OFF, LED_ON);
   }
 
   getConfigFromPreferences();
   if (debugMode) debugPrintConfigToSerial();
 
+  // WiFiManager
+  WiFi.mode(WIFI_STA);
+  WiFiManager wifiManager;
+  wifiManager.setAPCallback(configModeCallback);
+  bool res;
+  res = wifiManager.autoConnect("Radio Setup");
+  if (!res) {
+    if (debugMode) Serial.println("Failed to connect or hit timeout");
+    // This is a hard stop - show a red light.
+    setLightsRGB(LED_ON, LED_OFF, LED_OFF);
+    delay(2000);
+    ESP.restart();
+  }
 
-  setLightsRGB(LED_ON, LED_OFF, LED_OFF);
+  // Turn lights off if it connects to the remote list server, or does not need to.
+  setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
 }
 
 void loop() {
