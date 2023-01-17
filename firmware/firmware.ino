@@ -287,8 +287,8 @@ void setup() {
   blinkTimerInit();
   setLEDStatus(LED_STATUS_INFO_BLINKING);
 
-  // debugMode = setDebugMode();
-  debugMode = true;
+  debugMode = setDebugMode();
+  // debugMode = true;
 
   analogReadResolution(12);
 
