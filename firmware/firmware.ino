@@ -17,7 +17,7 @@ States:
   - Blue (blinking)     info (blinking)
 
 TODO:
-  - Set up a timer to set the volume - don't use a timer - it's in the loop, there's no need.
+  - Move the lights status to another file and its own class.
   - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
   - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
 
@@ -66,6 +66,8 @@ TODO:
 #define VOLUME_MIN 0
 #define VOLUME_MAX 21
 
+#define ANALOG_READ_INTERVAL_MS 50
+
 #define DEBUG_MODE_TIMEOUT_MS 3000
 #define DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
 
@@ -75,6 +77,8 @@ uint32_t debugLPS = 0;
 
 hw_timer_t *timerBlink = NULL;
 int rgbToBlink[] = { 0, 0, 0 };
+
+unsigned long lastAnalogRead = 0;
 
 Preferences preferences;
 
@@ -323,8 +327,12 @@ void setup() {
 
 void loop() {
 
-  int volume = getVolume();
-  // audio.setVolume(volume);
+  int volume;
+  if (millis() > lastAnalogRead + ANALOG_READ_INTERVAL_MS) {
+    volume = getVolume();
+    // audio.setVolume(volume);
+    lastAnalogRead = millis();
+  }
 
   if (debugMode) {
     debugLPS++;
