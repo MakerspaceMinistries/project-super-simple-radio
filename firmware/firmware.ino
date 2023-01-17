@@ -7,14 +7,14 @@ Example message for resetting the stored preferences and restarting the ESP.
 {"clearPreferences": true}
 
 States: 
-  - Red                 error
-  - Red (blinking)      error (blinking)
-  - Yellow              warning
-  - Yellow              warning (blinking)
-  - Green               success
-  - Green (blinking)    success (blinking)
-  - Blue                info
-  - Blue (blinking)     info (blinking)
+  - Green               LED_STATUS_SUCCESS              success
+  - Green (blinking)    LED_STATUS_SUCCESS_BLINKING     success (blinking)
+  - Blue                LED_STATUS_INFO                 info
+  - Blue (blinking)     LED_STATUS_INFO_BLINKING        info (blinking)
+  - Yellow              LED_STATUS_WARNING              warning
+  - Yellow              LED_STATUS_WARNING_BLINKING     warning (blinking)
+  - Red                 LED_STATUS_ERROR                error
+  - Red (blinking)      LED_STATUS_ERROR_BLINKING       error (blinking)
 
 TODO:
   - Move the lights status to another file and its own class.
@@ -104,10 +104,10 @@ void getConfigFromPreferences() {
   config.remoteList = preferences.getBool("remoteList", DEFAULT_REMOTE_LIST);
   config.radioID = preferences.getString("radioID", DEFAULT_RADIO_ID);
   config.hasChannelPot = preferences.getBool("hasChannelPot", DEFAULT_HAS_CHANNEL_POT);
-  config.pcbVersion = preferences.getString("pcbVersion", DEFAULT_PCB_VERSION).c_str();
-  config.stnOneURL = preferences.getString("stnOneURL", DEFAULT_STATION_ONE_URL).c_str();
-  config.stnTwoURL = preferences.getString("stnTwoURL", DEFAULT_STATION_TWO_URL).c_str();
-  config.stnThreeURL = preferences.getString("stnThreeURL", DEFAULT_STATION_THREE_URL).c_str();
+  config.pcbVersion = preferences.getString("pcbVersion", DEFAULT_PCB_VERSION);
+  config.stnOneURL = preferences.getString("stnOneURL", DEFAULT_STATION_ONE_URL);
+  config.stnTwoURL = preferences.getString("stnTwoURL", DEFAULT_STATION_TWO_URL);
+  config.stnThreeURL = preferences.getString("stnThreeURL", DEFAULT_STATION_THREE_URL);
   config.stationCount = preferences.getInt("stationCount", DEFAULT_STATION_COUNT);
   config.maxStationCount = preferences.getInt("maxStationCount", DEFAULT_MAX_STATION_COUNT);
   preferences.end();
@@ -289,7 +289,7 @@ void setup() {
   pinMode(PIN_LED_BLUE, OUTPUT);
 
   blinkTimerInit();
-  setLEDStatus(LED_STATUS_INFO_BLINKING);
+  setLEDStatus(LED_STATUS_INFO);
 
   debugMode = setDebugMode();
   // debugMode = true;
@@ -301,7 +301,7 @@ void setup() {
     Serial.println("DEBUG MODE ON");
     setLEDStatus(LED_STATUS_SUCCESS);
     delay(100);
-    setLEDStatus(LED_STATUS_INFO_BLINKING);
+    setLEDStatus(LED_STATUS_INFO);
   }
 
   getConfigFromPreferences();
