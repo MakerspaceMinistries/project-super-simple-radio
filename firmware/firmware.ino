@@ -17,8 +17,7 @@ States:
   - Blue (blinking)     info (blinking)
 
 TODO:
-  - Set up a way to measure loops per seconds - debugLPS. 
-  - Set up a timer to set the volume.
+  - Set up a timer to set the volume - don't use a timer - it's in the loop, there's no need.
   - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
   - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
 
@@ -72,6 +71,7 @@ TODO:
 
 bool debugMode = false;
 unsigned long lastDebugStatusUpdate = 0;
+uint32_t debugLPS = 0;
 
 hw_timer_t *timerBlink = NULL;
 int rgbToBlink[] = { 0, 0, 0 };
@@ -327,10 +327,16 @@ void loop() {
   // audio.setVolume(volume);
 
   if (debugMode) {
+    debugLPS++;
     debugHandleSerialInput();
     if (millis() - lastDebugStatusUpdate > DEBUG_STATUS_UPDATE_INTERVAL_MS) {
-      lastDebugStatusUpdate = millis();
       Serial.printf("volume=%d\n", volume);
+
+      int lps = debugLPS / (DEBUG_STATUS_UPDATE_INTERVAL_MS / 1000);
+      debugLPS = 0;
+      Serial.printf("lps=%d\n", lps);
+
+      lastDebugStatusUpdate = millis();
     }
   }
 }
