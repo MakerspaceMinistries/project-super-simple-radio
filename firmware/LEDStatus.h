@@ -2,6 +2,8 @@
 
 /*
 Status Options:
+  - Special (Blocking)  LED_STATUS_FADE_SUCCESS_TO_INFO
+  - Lights Off          LED_STATUS_LIGHTS_OFF           
   - Green               LED_STATUS_SUCCESS              success
   - Green (blinking)    LED_STATUS_SUCCESS_BLINKING     success (blinking)
   - Blue                LED_STATUS_INFO                 info
@@ -23,15 +25,17 @@ This in the switch should be made into a function:
 
 #include "esp_system.h"
 
-#define LED_STATUS_OFF -1
-#define LED_STATUS_SUCCESS 0
-#define LED_STATUS_SUCCESS_BLINKING 1
-#define LED_STATUS_INFO 2
-#define LED_STATUS_INFO_BLINKING 3
-#define LED_STATUS_WARNING 4
-#define LED_STATUS_WARNING_BLINKING 5
-#define LED_STATUS_ERROR 6
-#define LED_STATUS_ERROR_BLINKING 7
+#define LED_STATUS_FADE_SUCCESS_TO_INFO_ITERATIONS 1000
+#define LED_STATUS_FADE_SUCCESS_TO_INFO 0
+#define LED_STATUS_LIGHTS_OFF 1
+#define LED_STATUS_SUCCESS 2
+#define LED_STATUS_SUCCESS_BLINKING 3
+#define LED_STATUS_INFO 4
+#define LED_STATUS_INFO_BLINKING 5
+#define LED_STATUS_WARNING 6
+#define LED_STATUS_WARNING_BLINKING 7
+#define LED_STATUS_ERROR 8
+#define LED_STATUS_ERROR_BLINKING 9
 
 // The callback and variables required by the callback are global for simplicities sake.
 // This explains how to get around that: https://arduino.stackexchange.com/a/89176
@@ -96,6 +100,7 @@ void LEDStatus::init() {
   pinMode(gLedStatusRGBPins[0], OUTPUT);
   pinMode(gLedStatusRGBPins[1], OUTPUT);
   pinMode(gLedStatusRGBPins[2], OUTPUT);
+  writeRGB(mLedOff, mLedOff, mLedOff);
   mTimerBlink = timerBegin(mTimerNumber, mTimerDivider, true);
   timerAttachInterrupt(mTimerBlink, timerCallback, true);
   timerAlarmWrite(mTimerBlink, mTimerAlarmValue, true);
@@ -105,7 +110,17 @@ void LEDStatus::setStatus(int status) {
   writeRGB(mLedOff, mLedOff, mLedOff);
   timerDisable();
   switch (status) {
-    case LED_STATUS_OFF:
+    case LED_STATUS_FADE_SUCCESS_TO_INFO:
+      writeRGB(mLedOff, mLedOn, mLedOff);
+      delay(250);
+      for (int i = 0; i < LED_STATUS_FADE_SUCCESS_TO_INFO_ITERATIONS; i++) {
+        writeRGB(mLedOff, mLedOn, mLedOff);
+        delayMicroseconds(LED_STATUS_FADE_SUCCESS_TO_INFO_ITERATIONS - i);
+        writeRGB(mLedOff, mLedOff, mLedOn);
+        delayMicroseconds(i);
+      }
+      break;
+    case LED_STATUS_LIGHTS_OFF:
       // This is taken care of above.
       break;
     case LED_STATUS_SUCCESS:
