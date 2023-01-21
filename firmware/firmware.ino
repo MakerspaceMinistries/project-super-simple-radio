@@ -17,15 +17,42 @@ States:
   - Red (blinking)      LED_STATUS_ERROR_BLINKING       error (blinking)
 
 TODO:
+  - Pull settings from remote server
   - Move the lights status to another file and its own class.
   - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
   - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
+  - Detect wifi disconnect and set LED status
 
+  Audio/DAC
+  - Make sure it's using PSRAM, document how this is done
+  - Create instance
+    - Audio audio;
+  - Add to setup
+    - audio.setPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+    - audio.setVolume(0);
+  - Add to loop:
+    - Handle changes in stations
+    - Set status
+      - playing: audio.connecttohost(STATION_URL);
+      - stopped: audio.stopSong(); ?
+    - audio.loop();
+  - Handle station pot
+  - Handle DAC enable (pin 11) (set high to turn DAC on, low to turn DAC off)
+  - When volume > 0:
+    - audio.connecttohost(STATION_URL);
+  - Attempt to detect disconnects and set LED status
+
+  - Examples/Docs/Source
+    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.h
+    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.cpp
+    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/examples/Simple_WiFi_Radio/Simple_WiFi_Radio.ino
 */
 
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFiManager.h>
+#include "Audio.h"
+#include "LEDStatus.h"
 
 #define FIRMWARE_VERSION "v0.0"
 
@@ -43,16 +70,6 @@ TODO:
 
 #define LED_ON LOW
 #define LED_OFF HIGH
-
-#define LED_STATUS_OFF -1
-#define LED_STATUS_SUCCESS 0
-#define LED_STATUS_SUCCESS_BLINKING 1
-#define LED_STATUS_INFO 2
-#define LED_STATUS_INFO_BLINKING 3
-#define LED_STATUS_WARNING 4
-#define LED_STATUS_WARNING_BLINKING 5
-#define LED_STATUS_ERROR 6
-#define LED_STATUS_ERROR_BLINKING 7
 
 #define PIN_CHANNEL_POT 2
 #define PIN_LED_RED 4
@@ -75,8 +92,7 @@ bool debugMode = false;
 unsigned long lastDebugStatusUpdate = 0;
 uint32_t debugLPS = 0;
 
-hw_timer_t *timerBlink = NULL;
-int rgbToBlink[] = { 0, 0, 0 };
+LEDStatus ledStatus(PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE, LED_OFF, LED_ON);
 
 unsigned long lastAnalogRead = 0;
 
@@ -192,7 +208,7 @@ void debugPrintConfigToSerial() {
 }
 
 void configModeCallback(WiFiManager *myWiFiManager) {
-  setLEDStatus(LED_STATUS_WARNING_BLINKING);
+  ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
   if (debugMode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());
@@ -201,95 +217,10 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   }
 }
 
-void blinkCallback() {
-  // DO NOT change any variables here (that are from outside this scope)
-  int pins[3] = { PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE };
-  for (int i; i < 3; i++) {
-    if (rgbToBlink[i] == 1) {
-      int state = digitalRead(pins[i]);
-      digitalWrite(pins[i], !state);
-    }
-  }
-}
-
-void setRGBToBlink(int r, int g, int b) {
-  rgbToBlink[0] = r;
-  rgbToBlink[1] = g;
-  rgbToBlink[2] = b;
-}
-
-void blinkStart() {
-  timerAlarmEnable(timerBlink);
-}
-
-void blinkTimerInit() {
-  timerBlink = timerBegin(1, 80, true);
-  timerAttachInterrupt(timerBlink, blinkCallback, true);
-  timerAlarmWrite(timerBlink, 600000, true);
-}
-
-void blinkStop() {
-  timerAlarmDisable(timerBlink);
-  setRGBToBlink(0, 0, 0);
-}
-
-void setLEDStatus(int status) {
-  setLightsRGB(LED_OFF, LED_OFF, LED_OFF);
-  blinkStop();
-  switch (status) {
-    case LED_STATUS_OFF:
-      // This is taken care of above.
-      break;
-    case LED_STATUS_SUCCESS:
-      setLightsRGB(LED_OFF, LED_ON, LED_OFF);
-      break;
-    case LED_STATUS_SUCCESS_BLINKING:
-      setLightsRGB(LED_OFF, LED_ON, LED_OFF);
-      setRGBToBlink(0, 1, 0);
-      blinkStart();
-      break;
-    case LED_STATUS_INFO:
-      setLightsRGB(LED_OFF, LED_OFF, LED_ON);
-      break;
-    case LED_STATUS_INFO_BLINKING:
-      setLightsRGB(LED_OFF, LED_OFF, LED_ON);
-      setRGBToBlink(0, 0, 1);
-      blinkStart();
-      break;
-    case LED_STATUS_WARNING:
-      setLightsRGB(LED_ON, LED_ON, LED_OFF);
-      break;
-    case LED_STATUS_WARNING_BLINKING:
-      setLightsRGB(LED_ON, LED_ON, LED_OFF);
-      setRGBToBlink(1, 1, 0);
-      blinkStart();
-      break;
-    case LED_STATUS_ERROR:
-      setLightsRGB(LED_ON, LED_OFF, LED_OFF);
-      break;
-    case LED_STATUS_ERROR_BLINKING:
-      setLightsRGB(LED_ON, LED_OFF, LED_OFF);
-      setRGBToBlink(1, 0, 0);
-      blinkStart();
-      break;
-  }
-}
-
-void setLightsRGB(int r, int g, int b) {
-  digitalWrite(PIN_LED_RED, r);
-  digitalWrite(PIN_LED_GREEN, g);
-  digitalWrite(PIN_LED_BLUE, b);
-}
-
 void setup() {
 
-  // setup lights
-  pinMode(PIN_LED_RED, OUTPUT);
-  pinMode(PIN_LED_GREEN, OUTPUT);
-  pinMode(PIN_LED_BLUE, OUTPUT);
-
-  blinkTimerInit();
-  setLEDStatus(LED_STATUS_INFO);
+  ledStatus.init();
+  ledStatus.setStatus(LED_STATUS_INFO);
 
   debugMode = setDebugMode();
   // debugMode = true;
@@ -299,9 +230,9 @@ void setup() {
   if (debugMode) {
     Serial.begin(115200);
     Serial.println("DEBUG MODE ON");
-    setLEDStatus(LED_STATUS_SUCCESS);
+    ledStatus.setStatus(LED_STATUS_SUCCESS);
     delay(100);
-    setLEDStatus(LED_STATUS_INFO);
+    ledStatus.setStatus(LED_STATUS_INFO);
   }
 
   getConfigFromPreferences();
@@ -316,13 +247,13 @@ void setup() {
   if (!res) {
     if (debugMode) Serial.println("Failed to connect or hit timeout");
     // This is a hard stop
-    setLEDStatus(LED_STATUS_ERROR_BLINKING);
+    ledStatus.setStatus(LED_STATUS_ERROR_BLINKING);
     delay(5000);
     ESP.restart();
   }
 
   // Turn lights off if it connects to the remote list server, or does not need to.
-  setLEDStatus(LED_STATUS_OFF);
+  ledStatus.setStatus(LED_STATUS_OFF);
 }
 
 void loop() {
