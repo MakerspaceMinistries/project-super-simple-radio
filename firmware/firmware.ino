@@ -16,12 +16,13 @@ States:
   - Red                 LED_STATUS_ERROR                error
   - Red (blinking)      LED_STATUS_ERROR_BLINKING       error (blinking)
 
+Audio.h Examples/Docs/Source:
+  - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.h
+  - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.cpp
+  - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/examples/Simple_WiFi_Radio/Simple_WiFi_Radio.ino
+
 TODO:
   - Pull settings from remote server
-  - Move the lights status to another file and its own class.
-  - Add this as an option in debugHandleSerialInput(): wifiManager.resetSettings();
-  - Make some sort of effect when the radio is first powered on, to be able to detect restarts later on.
-  - Detect wifi disconnect and set LED status
 
   Audio/DAC
   - Make sure it's using PSRAM, document how this is done
@@ -42,10 +43,6 @@ TODO:
     - audio.connecttohost(STATION_URL);
   - Attempt to detect disconnects and set LED status
 
-  - Examples/Docs/Source
-    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.h
-    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.cpp
-    - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/examples/Simple_WiFi_Radio/Simple_WiFi_Radio.ino
 */
 
 #include <ArduinoJson.h>
@@ -88,6 +85,8 @@ TODO:
 #define DEBUG_MODE_TIMEOUT_MS 3000
 #define DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
 
+WiFiManager wifiManager;
+
 bool debugMode = false;
 unsigned long lastDebugStatusUpdate = 0;
 uint32_t debugLPS = 0;
@@ -95,6 +94,7 @@ uint32_t debugLPS = 0;
 LEDStatus ledStatus(PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE, LED_OFF, LED_ON);
 
 unsigned long lastAnalogRead = 0;
+unsigned long lastMinuteInterval = 0;
 
 Preferences preferences;
 
@@ -187,6 +187,12 @@ void debugHandleSerialInput() {
         ESP.restart();
       }
 
+      if (doc["resetWiFi"]) {
+        wifiManager.resetSettings();
+        Serial.println("Executing wifiManager.resetSettings(), restarting for this to take effect.");
+        ESP.restart();
+      }
+
       preferences.end();
 
       debugPrintConfigToSerial();
@@ -220,10 +226,10 @@ void configModeCallback(WiFiManager *myWiFiManager) {
 void setup() {
 
   ledStatus.init();
-  ledStatus.setStatus(LED_STATUS_INFO);
-
   debugMode = setDebugMode();
   // debugMode = true;
+  ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
+  ledStatus.setStatus(LED_STATUS_INFO);
 
   analogReadResolution(12);
 
@@ -240,7 +246,7 @@ void setup() {
 
   // WiFiManager
   WiFi.mode(WIFI_STA);
-  WiFiManager wifiManager;
+  wifiManager.setDebugOutput(debugMode);
   wifiManager.setAPCallback(configModeCallback);
   bool res;
   res = wifiManager.autoConnect("Radio Setup");
@@ -253,7 +259,7 @@ void setup() {
   }
 
   // Turn lights off if it connects to the remote list server, or does not need to.
-  ledStatus.setStatus(LED_STATUS_OFF);
+  ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
 }
 
 void loop() {
@@ -263,6 +269,18 @@ void loop() {
     volume = getVolume();
     // audio.setVolume(volume);
     lastAnalogRead = millis();
+  }
+
+  // Check every minute if the wifi connection has been lost and reconnect.
+  if (millis() > lastMinuteInterval + 60 * 1000) {
+    if (debugMode) Serial.println("Checking WiFi connection...");
+    if (WiFi.status() != WL_CONNECTED) {
+      if (debugMode) Serial.println("Reconnecting to WiFi...");
+      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+      WiFi.disconnect();
+      WiFi.reconnect();
+      lastMinuteInterval = millis();
+    }
   }
 
   if (debugMode) {
