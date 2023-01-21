@@ -50,6 +50,7 @@ TODO:
 #include <WiFiManager.h>
 #include "Audio.h"
 #include "LEDStatus.h"
+#include "ChannelPot.h"
 
 #define FIRMWARE_VERSION "v0.0"
 
@@ -63,7 +64,7 @@ TODO:
 #define DEFAULT_STATION_TWO_URL ""
 #define DEFAULT_STATION_THREE_URL ""
 #define DEFAULT_STATION_COUNT 1
-#define DEFAULT_MAX_STATION_COUNT 1
+#define DEFAULT_MAX_STATION_COUNT 4
 
 #define LED_ON LOW
 #define LED_OFF HIGH
@@ -92,6 +93,9 @@ unsigned long lastDebugStatusUpdate = 0;
 uint32_t debugLPS = 0;
 
 LEDStatus ledStatus(PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE, LED_OFF, LED_ON);
+
+ChannelPot channelPot(PIN_CHANNEL_POT);
+int channelIdx = 0;
 
 unsigned long lastAnalogRead = 0;
 unsigned long lastMinuteInterval = 0;
@@ -175,8 +179,14 @@ void debugHandleSerialInput() {
       config.stnOneURL = doc["stnOneURL"] | config.stnOneURL;
       config.stnTwoURL = doc["stnTwoURL"] | config.stnTwoURL;
       config.stnThreeURL = doc["stnThreeURL"] | config.stnThreeURL;
-      config.stationCount = doc["stationCount"];
-      config.maxStationCount = doc["maxStationCount"];
+
+      if (doc["stationCount"]) {
+        config.stationCount = doc["stationCount"];
+        channelPot.setNumberOfChannels(config.stationCount);
+      }
+      
+      /* This is currently limited by the lookup table in the ChannelPot object */
+      // config.maxStationCount = doc["maxStationCount"];
 
       putConfigToPreferences();
 
@@ -244,6 +254,9 @@ void setup() {
   getConfigFromPreferences();
   if (debugMode) debugPrintConfigToSerial();
 
+  channelPot.setNumberOfChannels(config.stationCount);
+  channelIdx = channelPot.selectedChannelIdx();
+
   // WiFiManager
   WiFi.mode(WIFI_STA);
   wifiManager.setDebugOutput(debugMode);
@@ -265,9 +278,13 @@ void setup() {
 void loop() {
 
   int volume;
+
   if (millis() > lastAnalogRead + ANALOG_READ_INTERVAL_MS) {
     volume = getVolume();
     // audio.setVolume(volume);
+
+    channelIdx = channelPot.selectedChannelIdx();
+
     lastAnalogRead = millis();
   }
 
@@ -279,8 +296,10 @@ void loop() {
       ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
       WiFi.disconnect();
       WiFi.reconnect();
-      lastMinuteInterval = millis();
     }
+
+    // Reset interval
+    lastMinuteInterval = millis();
   }
 
   if (debugMode) {
@@ -288,6 +307,7 @@ void loop() {
     debugHandleSerialInput();
     if (millis() - lastDebugStatusUpdate > DEBUG_STATUS_UPDATE_INTERVAL_MS) {
       Serial.printf("volume=%d\n", volume);
+      Serial.printf("channelIdx=%d\n", channelIdx);
 
       int lps = debugLPS / (DEBUG_STATUS_UPDATE_INTERVAL_MS / 1000);
       debugLPS = 0;
