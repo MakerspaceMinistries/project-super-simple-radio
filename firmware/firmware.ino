@@ -23,24 +23,12 @@ Audio.h Examples/Docs/Source:
 
 TODO:
   - Pull settings from remote server
+  - Refactor setDebugMode
+  - Number of channels it supports in the map doesn't match the number of channels available to set in the channelMap
 
   Audio/DAC
   - Make sure it's using PSRAM, document how this is done
-  - Create instance
-    - Audio audio;
-  - Add to setup
-    - audio.setPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
-    - audio.setVolume(0);
-  - Add to loop:
-    - Handle changes in stations
-    - Set status
-      - playing: audio.connecttohost(STATION_URL);
-      - stopped: audio.stopSong(); ?
-    - audio.loop();
-  - Handle station pot
   - Handle DAC enable (pin 11) (set high to turn DAC on, low to turn DAC off)
-  - When volume > 0:
-    - audio.connecttohost(STATION_URL);
   - Attempt to detect disconnects and set LED status
 
 */
@@ -87,6 +75,7 @@ TODO:
 #define DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
 
 WiFiManager wifiManager;
+Audio audio;
 
 bool debugMode = false;
 unsigned long lastDebugStatusUpdate = 0;
@@ -95,7 +84,6 @@ uint32_t debugLPS = 0;
 LEDStatus ledStatus(PIN_LED_RED, PIN_LED_GREEN, PIN_LED_BLUE, LED_OFF, LED_ON);
 
 ChannelPot channelPot(PIN_CHANNEL_POT);
-int channelIdx = 0;
 
 unsigned long lastAnalogRead = 0;
 unsigned long lastMinuteInterval = 0;
@@ -148,15 +136,19 @@ void putConfigToPreferences() {
   preferences.end();
 }
 
-int getVolume() {
-  int volumeRaw = analogRead(PIN_VOLUME_POT);
-  return map(volumeRaw, 0, 4095, VOLUME_MIN, VOLUME_MAX);
-}
-
 bool setDebugMode() {
-  if (getVolume() == VOLUME_MAX) {
+  /*
+  
+  Use the radio object? Don't map, use a tolarance instead?
+  
+  */
+  int volume = analogRead(PIN_VOLUME_POT);
+  map(volume, 0, 4095, VOLUME_MIN, VOLUME_MAX);
+  if (volume == VOLUME_MAX) {
     delay(DEBUG_MODE_TIMEOUT_MS);
-    if (getVolume() == VOLUME_MIN) return true;
+    volume = analogRead(PIN_VOLUME_POT);
+    map(volume, 0, 4095, VOLUME_MIN, VOLUME_MAX);
+    if (volume == VOLUME_MIN) return true;
   }
   return false;
 }
@@ -184,7 +176,7 @@ void debugHandleSerialInput() {
         config.stationCount = doc["stationCount"];
         channelPot.setNumberOfChannels(config.stationCount);
       }
-      
+
       /* This is currently limited by the lookup table in the ChannelPot object */
       // config.maxStationCount = doc["maxStationCount"];
 
@@ -233,6 +225,96 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   }
 }
 
+void checkWiFiDisconnect() {
+  // Check every minute if the wifi connection has been lost and reconnect.
+  if (millis() > lastMinuteInterval + 60 * 1000) {
+    if (debugMode) Serial.println("Checking WiFi connection...");
+    if (WiFi.status() != WL_CONNECTED) {
+      if (debugMode) Serial.println("Reconnecting to WiFi...");
+      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+      WiFi.disconnect();
+      WiFi.reconnect();
+    }
+    // Reset interval
+    lastMinuteInterval = millis();
+  }
+}
+
+class Radio {
+public:
+  int mPlaying = false;
+  int mChannelIdx = NULL;
+  int mVolume = 0;
+  char mCurrentStation[2048];
+  Radio(){
+
+  };
+  void play() {
+    String stations[] = {
+      config.stnOneURL,
+      config.stnTwoURL,
+      config.stnThreeURL
+    };
+    ledStatus.setStatus(LED_STATUS_INFO_BLINKING);
+    stations[mChannelIdx].toCharArray(mCurrentStation, 2048);
+    mPlaying = audio.connecttohost(mCurrentStation);
+    if (mPlaying) {
+      ledStatus.setStatus(LED_STATUS_SUCCESS);
+    } else {
+      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+    }
+  };
+  void stop() {
+    mPlaying = false;
+    audio.stopSong();
+    ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
+  };
+  void setVolume() {
+    int volumeRaw = analogRead(PIN_VOLUME_POT);
+    mVolume = map(volumeRaw, 0, 4095, VOLUME_MIN, VOLUME_MAX);
+    audio.setVolume(mVolume);
+  }
+  void setChannel() {
+    int newChannelIdx = channelPot.selectedChannelIdx();
+    if (mChannelIdx != newChannelIdx) {
+      mChannelIdx = newChannelIdx;
+      stop();
+    }
+  }
+  void loop() {
+    if (millis() > lastAnalogRead + ANALOG_READ_INTERVAL_MS) {
+      setVolume();
+      setChannel();
+      lastAnalogRead = millis();
+      if (mVolume > 0 && !mPlaying) {
+        play();
+      } else if (mVolume == 0 && mPlaying) {
+        stop();
+      }
+    }
+  }
+};
+
+Radio radio;
+
+void debugModeLoop() {
+  debugLPS++;
+  debugHandleSerialInput();
+  if (millis() - lastDebugStatusUpdate > DEBUG_STATUS_UPDATE_INTERVAL_MS) {
+    Serial.printf("radio.mVolume=%d\n", radio.mVolume);
+    Serial.printf("radio.mChannelIdx=%d\n", radio.mChannelIdx);
+    Serial.printf("radio.mPlaying=%d\n", radio.mPlaying);
+    Serial.print("radio.mCurrentStation=");
+    Serial.println(radio.mCurrentStation);
+
+    int lps = debugLPS / (DEBUG_STATUS_UPDATE_INTERVAL_MS / 1000);
+    debugLPS = 0;
+    Serial.printf("lps=%d\n", lps);
+
+    lastDebugStatusUpdate = millis();
+  }
+}
+
 void setup() {
 
   ledStatus.init();
@@ -255,7 +337,6 @@ void setup() {
   if (debugMode) debugPrintConfigToSerial();
 
   channelPot.setNumberOfChannels(config.stationCount);
-  channelIdx = channelPot.selectedChannelIdx();
 
   // WiFiManager
   WiFi.mode(WIFI_STA);
@@ -273,47 +354,19 @@ void setup() {
 
   // Turn lights off if it connects to the remote list server, or does not need to.
   ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
+
+  audio.setPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  audio.setVolume(0);
 }
 
 void loop() {
+  // Check if the WiFi has disconnected
+  checkWiFiDisconnect();
 
-  int volume;
-
-  if (millis() > lastAnalogRead + ANALOG_READ_INTERVAL_MS) {
-    volume = getVolume();
-    // audio.setVolume(volume);
-
-    channelIdx = channelPot.selectedChannelIdx();
-
-    lastAnalogRead = millis();
-  }
-
-  // Check every minute if the wifi connection has been lost and reconnect.
-  if (millis() > lastMinuteInterval + 60 * 1000) {
-    if (debugMode) Serial.println("Checking WiFi connection...");
-    if (WiFi.status() != WL_CONNECTED) {
-      if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
-      WiFi.disconnect();
-      WiFi.reconnect();
-    }
-
-    // Reset interval
-    lastMinuteInterval = millis();
-  }
+  radio.loop();
+  audio.loop();
 
   if (debugMode) {
-    debugLPS++;
-    debugHandleSerialInput();
-    if (millis() - lastDebugStatusUpdate > DEBUG_STATUS_UPDATE_INTERVAL_MS) {
-      Serial.printf("volume=%d\n", volume);
-      Serial.printf("channelIdx=%d\n", channelIdx);
-
-      int lps = debugLPS / (DEBUG_STATUS_UPDATE_INTERVAL_MS / 1000);
-      debugLPS = 0;
-      Serial.printf("lps=%d\n", lps);
-
-      lastDebugStatusUpdate = millis();
-    }
+    debugModeLoop();
   }
 }
