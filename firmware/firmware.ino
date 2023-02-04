@@ -12,7 +12,6 @@ Example serial message for configuring the radio.
   "stnThreeURL":"stnThreeURL",
   "stnFourURL":"stnFourURL",
   "stationCount":4,
-  "maxStationCount":4
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
