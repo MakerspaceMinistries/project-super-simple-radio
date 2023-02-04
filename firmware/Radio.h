@@ -18,7 +18,6 @@ It is unaware of the Audio & LEDStatus objects.
 #define RADIO_DEFAULT_STATION_THREE_URL ""
 #define RADIO_DEFAULT_STATION_FOUR_URL ""
 #define RADIO_DEFAULT_STATION_COUNT 1
-#define RADIO_DEFAULT_MAX_STATION_COUNT 4
 
 class Radio {
   int mChannelPotPin;
@@ -66,7 +65,7 @@ public:
   String stnThreeURL = RADIO_DEFAULT_STATION_THREE_URL;
   String stnFourURL = RADIO_DEFAULT_STATION_FOUR_URL;
   int stationCount = RADIO_DEFAULT_STATION_COUNT;
-  int maxStationCount = RADIO_DEFAULT_MAX_STATION_COUNT;
+  int maxStationCount = 4; // This is determined by hardware
 };
 
 Radio::Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax) {
@@ -89,7 +88,6 @@ void Radio::getConfigFromPreferences() {
   stnThreeURL = preferences.getString("stnThreeURL", RADIO_DEFAULT_STATION_THREE_URL);
   stnFourURL = preferences.getString("stnFourURL", RADIO_DEFAULT_STATION_FOUR_URL);
   stationCount = preferences.getInt("stationCount", RADIO_DEFAULT_STATION_COUNT);
-  maxStationCount = preferences.getInt("maxStationCount", RADIO_DEFAULT_MAX_STATION_COUNT);
   preferences.end();
 }
 
@@ -105,7 +103,6 @@ void Radio::putConfigToPreferences() {
   preferences.putString("stnThreeURL", stnThreeURL);
   preferences.putString("stnFourURL", stnFourURL);
   preferences.putInt("stationCount", stationCount);
-  preferences.putInt("maxStationCount", maxStationCount);
   preferences.end();
 }
 
