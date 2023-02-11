@@ -16,3 +16,13 @@ hardware/v1-USMX/v1-USMX-backups/v1-USMX-2022-12-21_092105.zip
 hardware/v1-USMX/v1-USMX-backups/
 
 hardware/v1-USMX/_autosave-v1-USMX.kicad_pcb
+
+station-configuration-api/app/__pycache__/database.cpython-311.pyc
+
+station-configuration-api/app/__pycache__/flask_exception.cpython-311.pyc
+
+station-configuration-api/app/__pycache__/main.cpython-311.pyc
+
+station-configuration-api/app/__pycache__/
+
+*.pyc
