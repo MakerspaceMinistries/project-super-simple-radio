@@ -8,6 +8,8 @@ get_station_query = "SELECT * FROM Stations WHERE network_id = %s AND station_id
 
 
 class StationsEndpoint(Resource):
+    method_decorators = {"post": [admins_only]}
+
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("network_id", type=int, default=None)
