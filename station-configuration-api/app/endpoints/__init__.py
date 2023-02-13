@@ -4,6 +4,10 @@ import os
 from functools import wraps
 
 
+def is_admin(session):
+    return "is_admin" in session and session["is_admin"]
+
+
 def admins_only(f):
     """
 
@@ -13,7 +17,7 @@ def admins_only(f):
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if "is_admin" in session and session["is_admin"]:
+        if is_admin(session):
             return f(*args, **kwargs)
         else:
             return abort(401)

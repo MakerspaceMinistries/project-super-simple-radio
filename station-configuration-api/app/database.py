@@ -45,6 +45,9 @@ class Database(object):
     def execute(self, query, data=[]):
         self.cursor.execute(query, data)
 
+    def executemany(self, query, data=[]):
+        self.cursor.executemany(query, data)
+
     def fetch(self, first=False):
         ret_val = []
         for r in self.cursor:
