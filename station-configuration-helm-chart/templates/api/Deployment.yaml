@@ -1,0 +1,56 @@
+# https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.api.name }}-deployment
+  labels:
+    app: {{ .Values.api.name }}-label
+
+# https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/#DeploymentSpec
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.api.name }}-label
+
+  # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-template-v1/#PodTemplateSpec
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.name }}-label
+
+    # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#PodSpec
+    spec:
+
+      # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Container
+      containers:
+      - name: {{ .Values.api.name }}-container
+        image: {{ .Values.api.image }}:{{ .Values.api.imageTag }}
+
+        imagePullPolicy: Always
+        
+        ports:
+        - containerPort: {{ .Values.api.containerPort }}
+
+        env:
+        - name: FLASK_SECRET_KEY
+          value: {{ .Values.api.FLASK_SECRET_KEY }}
+        - name: WEBSITE_DB_HOST
+          value: {{ .Values.api.WEBSITE_DB_HOST }}
+        - name: WEBSITE_DB_USER
+          value: {{ .Values.api.WEBSITE_DB_USER }}
+        - name: WEBSITE_DB_PASS
+          value: {{ .Values.api.WEBSITE_DB_PASS }}
+        - name: WEBSITE_DB_DATABASE
+          value: {{ .Values.api.WEBSITE_DB_DATABASE }}
+        - name: PASSWORD_SALT
+          value: {{ .Values.api.PASSWORD_SALT }}
+
+        # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.api.containerPort }}
+          initialDelaySeconds: 7
+          periodSeconds: 3
+          timeoutSeconds: 2
