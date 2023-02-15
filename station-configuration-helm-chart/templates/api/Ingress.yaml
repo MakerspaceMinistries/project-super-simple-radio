@@ -1,0 +1,23 @@
+# https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.api.name }}-ingress
+
+# https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/#IngressSpec
+spec:
+  rules:
+
+    # can be host or path - https://kubernetes.io/docs/concepts/services-networking/ingress/#the-ingress-resource
+    - host: {{ .Values.api.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+
+            # https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/#IngressBackend
+            backend:
+              service:
+                name: {{ .Values.api.name }}-service
+                port:
+                  number: {{ .Values.api.ingressPort }}

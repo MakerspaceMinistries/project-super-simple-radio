@@ -26,3 +26,5 @@ station-configuration-api/app/__pycache__/main.cpython-311.pyc
 station-configuration-api/app/__pycache__/
 
 *.pyc
+
+station-configuration-helm-chart/secrets.yaml

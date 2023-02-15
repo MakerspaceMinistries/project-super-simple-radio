@@ -4,4 +4,4 @@ WEBSITE_DB_HOST=database-1.ch96njux3oau.us-east-2.rds.amazonaws.com
 WEBSITE_DB_USER=SuperSimpleRadios
 WEBSITE_DB_PASS=x6BYA6pE3tRxBef3
 WEBSITE_DB_DATABASE=SuperSimpleRadios
-PASSWORD_SALT="n324o89ds89w
+PASSWORD_SALT=n324o89ds89w

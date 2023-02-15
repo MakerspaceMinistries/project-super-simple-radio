@@ -73,7 +73,7 @@ class RadioEndpoint(Resource):
 
             # Get Stations
             data = (radio_id,)
-            query = "SELECT Stations.station_id, network_id, station_url, station_name, position, last_seen FROM RadiosStations JOIN Stations ON RadiosStations.station_id = Stations.station_id WHERE radio_id = %s ORDER BY position ASC;"
+            query = "SELECT Stations.station_id, network_id, station_url, station_name, position FROM RadiosStations JOIN Stations ON RadiosStations.station_id = Stations.station_id WHERE radio_id = %s ORDER BY position ASC;"
             connection.execute(query, data)
             result["stations"] = connection.fetch()
 
