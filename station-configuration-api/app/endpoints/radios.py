@@ -114,5 +114,5 @@ class RadioEndpoint(Resource):
 
         return self.get(radio_id)
 
-    def delete(self, radio_id):
-        pass
+    # def delete(self, radio_id):
+    #     pass

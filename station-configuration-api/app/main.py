@@ -15,8 +15,7 @@ app = Flask(__name__)
 
 secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.secret_key = bytes(secret_key, "utf-8").decode("unicode_escape")
-# This needs to be 50 years so that it will work with the current yard site which uses an epoch starting in 2011
-app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(days=365) * 50
+app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(days=365)
 
 
 api = Api(app)
