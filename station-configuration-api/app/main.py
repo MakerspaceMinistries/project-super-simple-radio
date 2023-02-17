@@ -42,7 +42,7 @@ api.add_resource(RadiosEndpoint, api_prefix + "/radios")
 api.add_resource(RadioEndpoint, api_prefix + "/radios/<radio_id>")
 
 # CRUD radio config interface for the radio. Allow this to be versioned since it
-api.add_resource(RadioDeviceInterface_v1_0_Endpoint, api_prefix + "/radios/<radio_id>/device_interface/v1.0")
+api.add_resource(RadioDeviceInterface_v1_0_Endpoint, api_prefix + "/radios/device_interface/v1.0/<radio_id>")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
