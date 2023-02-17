@@ -3,7 +3,7 @@ from database import Database
 
 
 class RadioDeviceInterface_v1_0_Endpoint(Resource):
-    def put(self, radio_id):
+    def get(self, radio_id):
         parser = reqparse.RequestParser()
         parser.add_argument("pcb_version", type=str)
         parser.add_argument("firmware_version", type=str)
@@ -33,8 +33,17 @@ class RadioDeviceInterface_v1_0_Endpoint(Resource):
             connection.execute(query, data)
             stations = connection.fetch()
 
+            data = (radio_id,)
+            query = "SELECT * FROM Radios WHERE radio_id = %s;"
+            connection.execute(query, data)
+            radio = connection.fetch(first=True)
+
         station_urls = [s["station_url"] for s in stations]
 
-        response = {"station_urls": station_urls, "station_count": len(station_urls)}
+        response = {"station_count": len(station_urls)}
+
+        stationsKeys = [ "stn" + str(i) + "URL" for i in range(1,10) ]
+        for i, key in enumerate(stationsKeys[0:radio["max_station_count"]]):
+            response[key] = station_urls[i] if i < len(station_urls) else ""
 
         return response
