@@ -26,6 +26,7 @@ Below is the current state of figuring this out.
     - USB DFU on Boot: Disabled (?)
     - USB Firmware MSC on Boot: Disabled
     - USB Mode: USB OTG
+    - PSRAM: OPI PSRAM
     - Upload Mode UART
 2. Boot the ESP32 S3 into download mode (hold the boot button while pressing the reset button)
 3. Reset the ESP32 S3 (this time pressing only the reset button), putting it back into normal mode (the S3 will not reset itself automatically as other dev boards do.)
@@ -37,6 +38,7 @@ Below is the current state of figuring this out.
     - USB DFU on Boot: Disabled (?)
     - USB Firmware MSC on Boot: Disabled
     - USB Mode: USB OTG
+    - PSRAM: OPI PSRAM
     - Upload Mode UART
-2. (? - is this needed for USB Mode?) Boot the ESP32 S3 into download mode (hold the boot button while pressing the reset button)
-3. (? - is this needed for USB Mode?) Reset the ESP32 S3 (this time pressing only the reset button), putting it back into normal mode (the S3 will not reset itself automatically as other dev boards do.)
+1. (? - is this needed for USB Mode?) Boot the ESP32 S3 into download mode (hold the boot button while pressing the reset button)
+2. (? - is this needed for USB Mode?) Reset the ESP32 S3 (this time pressing only the reset button), putting it back into normal mode (the S3 will not reset itself automatically as other dev boards do.)
