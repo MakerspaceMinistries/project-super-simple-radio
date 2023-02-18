@@ -40,7 +40,7 @@ class RadioDeviceInterface_v1_0_Endpoint(Resource):
 
         station_urls = [s["station_url"] for s in stations]
 
-        response = {"station_count": len(station_urls)}
+        response = {"stationCount": len(station_urls)}
 
         stationsKeys = [ "stn" + str(i) + "URL" for i in range(1,10) ]
         for i, key in enumerate(stationsKeys[0:radio["max_station_count"]]):
