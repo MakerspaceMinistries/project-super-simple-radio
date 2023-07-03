@@ -2,16 +2,16 @@
 
 Example serial message for configuring the radio.
 {
-  "remoteListURL":"remoteListURL",
-  "remoteList":true,
+  "remoteConfigURL":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
+  "remoteConfig":true,
   "radioID":"radioID",
   "hasChannelPot":true,
   "pcbVersion":"pcbVersion",
-  "stnOneURL":"http://acc-radio.raiotech.com/mansfield.mp3",
-  "stnTwoURL":"stnTwoURL",
-  "stnThreeURL":"stnThreeURL",
-  "stnFourURL":"stnFourURL",
-  "stationCount":4,
+  "stn1URL":"http://acc-radio.raiotech.com/mansfield.mp3",
+  "stn2URL":"https://broadcastify.cdnstream1.com/5974",
+  "stn3URL":"https://paineldj6.com.br:20030/stream?type=.mp3",
+  "stn4URL":"https://s1-fmt2.liveatc.net/kmfd1_zob04",
+  "stationCount":4
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
@@ -43,15 +43,17 @@ TODO:
   - Try moving the ledStatus object to be part of the radio (keep the class, but use radio.ledStatus.setStatus(), since its part of the radio )
 
 */
+#define FIRMWARE_VERSION "v0.0"
 
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFiManager.h>
 #include "Audio.h"
+
+
 #include "LEDStatus.h"
 #include "Radio.h"
 
-#define FIRMWARE_VERSION "v0.0"
 
 #define LED_ON LOW
 #define LED_OFF HIGH
@@ -61,6 +63,7 @@ TODO:
 #define PIN_LED_GREEN 5
 #define PIN_LED_BLUE 6
 #define PIN_VOLUME_POT 8
+#define PIN_DAC_SD_MODE 11
 #define PIN_I2S_DOUT 12
 #define PIN_I2S_BCLK 13
 #define PIN_I2S_LRC 14
@@ -72,11 +75,15 @@ TODO:
 
 #define DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
 
+#define CURRENT_TIME_CHECK_INTERVAL_S 3
+
 WiFiManager wifiManager;
 Audio audio;
 
 unsigned long lastDebugStatusUpdate = 0;
 uint32_t debugLPS = 0;
+unsigned long lastCurrentTimeCheck = 0;
+uint32_t lastCurrentTime = 0;
 
 struct {
   int channelIdx = 0;
@@ -101,17 +108,17 @@ void debugHandleSerialInput() {
       serializeJson(doc, Serial);
       Serial.println("");
 
-      radio.remoteListURL = doc["remoteListURL"] | radio.remoteListURL;
-      radio.remoteList = doc["remoteList"] | radio.remoteList;
+      radio.remoteConfigURL = doc["remoteConfigURL"] | radio.remoteConfigURL;
+      radio.remoteConfig = doc["remoteConfig"] | radio.remoteConfig;
       radio.radioID = doc["radioID"] | radio.radioID;
 
       // should the stuff after | be there? if it works, then leave it alone
       radio.hasChannelPot = doc["hasChannelPot"] | radio.hasChannelPot;
       radio.pcbVersion = doc["pcbVersion"] | radio.pcbVersion;
-      radio.stnOneURL = doc["stnOneURL"] | radio.stnOneURL;
-      radio.stnTwoURL = doc["stnTwoURL"] | radio.stnTwoURL;
-      radio.stnThreeURL = doc["stnThreeURL"] | radio.stnThreeURL;
-      radio.stnFourURL = doc["stnFourURL"] | radio.stnFourURL;
+      radio.stn1URL = doc["stn1URL"] | radio.stn1URL;
+      radio.stn2URL = doc["stn2URL"] | radio.stn2URL;
+      radio.stn3URL = doc["stn3URL"] | radio.stn3URL;
+      radio.stn4URL = doc["stn4URL"] | radio.stn4URL;
 
       if (doc["stationCount"]) {
         radio.stationCount = doc["stationCount"];
@@ -136,22 +143,9 @@ void debugHandleSerialInput() {
         ESP.restart();
       }
 
-      debugPrintConfigToSerial();
+      radio.debugPrintConfigToSerial();
     }
   }
-}
-
-void debugPrintConfigToSerial() {
-  Serial.printf("FIRMWARE_VERSION=%s\n", FIRMWARE_VERSION);
-  Serial.printf("radio.remoteListURL=%s\n", radio.remoteListURL);
-  Serial.printf("radio.remoteList=%d\n", radio.remoteList);
-  Serial.printf("radio.radioID=%s\n", radio.radioID);
-  Serial.printf("radio.hasChannelPot=%d\n", radio.hasChannelPot);
-  Serial.printf("radio.stnOneURL=%s\n", radio.stnOneURL);
-  Serial.printf("radio.stnTwoURL=%s\n", radio.stnTwoURL);
-  Serial.printf("radio.stnThreeURL=%s\n", radio.stnThreeURL);
-  Serial.printf("radio.stationCount=%d\n", radio.stationCount);
-  Serial.printf("radio.maxStationCount=%d\n", radio.maxStationCount);
 }
 
 void configModeCallback(WiFiManager *myWiFiManager) {
@@ -197,7 +191,21 @@ void debugModeLoop() {
   }
 }
 
+void audio_info(const char *info) {
+  // Triggered once a feed is played.
+  if (radio.debugMode) {
+    Serial.print("info:");
+    Serial.println(info);
+  }
+}
+
 void setup() {
+
+  // Consider moving this to the Radio object
+  pinMode(PIN_DAC_SD_MODE, OUTPUT);
+
+  // Turn DAC on
+  digitalWrite(PIN_DAC_SD_MODE, HIGH);
 
   // This should be run first to make sure that debug mode is set right away.
   radio.init();
@@ -210,7 +218,7 @@ void setup() {
     ledStatus.setStatus(LED_STATUS_SUCCESS);
     delay(100);
     ledStatus.setStatus(LED_STATUS_INFO);
-    debugPrintConfigToSerial();
+    radio.debugPrintConfigToSerial();
   }
 
   ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
@@ -230,11 +238,18 @@ void setup() {
     ESP.restart();
   }
 
+  audio.setPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
+  audio.setVolume(0);
+
   // Turn lights off if it connects to the remote list server, or does not need to.
   ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
 
-  audio.setPinout(PIN_I2S_BCLK, PIN_I2S_LRC, PIN_I2S_DOUT);
-  audio.setVolume(0);
+  // Get stations from config server
+  bool error = radio.getConfigFromRemote();
+  if (error) {
+    ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+    delay(5000);
+  }
 }
 
 void loop() {
@@ -257,28 +272,27 @@ void loop() {
 
     /*
 
-  Check if the requested status is different from the current status, if different, make changes
-  
-  */
+    Check if the requested status is different from the current status, if different, make changes
+    
+    */
 
     if (selectedChannelIdx != status.channelIdx) {
       // change channel, set status.playing to false to trigger a reconnect.
       status.channelIdx = selectedChannelIdx;
       status.playing = false;
-
-      // TODO turn DAC on
-      // audio.stopSong();  This doesn't appear to be needed before playing a new channel
     }
 
     if (selectedVolume > 0 && !status.playing) {
+
       // start play, set status.playing
       ledStatus.setStatus(LED_STATUS_INFO_BLINKING);
 
-      String channels[] = { radio.stnOneURL, radio.stnTwoURL, radio.stnThreeURL, radio.stnFourURL };
+      String channels[] = { radio.stn1URL, radio.stn2URL, radio.stn3URL, radio.stn4URL };
       char selectedChannelURL[2048];
       channels[status.channelIdx].toCharArray(selectedChannelURL, 2048);
       status.playing = audio.connecttohost(selectedChannelURL);
 
+      // This may overwrite an error status since it doesn't rely on a status change, but fires every VOLUME_CHANNEL_READ_INTERVAL_MS
       if (status.playing) {
         ledStatus.setStatus(LED_STATUS_SUCCESS);
       } else {
@@ -296,7 +310,16 @@ void loop() {
       status.playing = false;
       audio.stopSong();
       ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
-      // TODO turn DAC off
+    }
+
+    // Check if the audio.getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+    if (status.playing && millis() > lastCurrentTimeCheck + CURRENT_TIME_CHECK_INTERVAL_S * 1000) {
+      lastCurrentTimeCheck = millis();
+      uint32_t currentTime = audio.getAudioCurrentTime();
+      if (lastCurrentTime - currentTime > CURRENT_TIME_CHECK_INTERVAL_S * 0.9) {
+        status.playing = false;
+      }
+      lastCurrentTime = currentTime;
     }
   }
 }
