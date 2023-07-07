@@ -9,6 +9,7 @@ It is unaware of the Audio & LEDStatus objects.
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "LEDStatus.h"
 
 #define RADIO_DEFAULT_REMOTE_LIST_URL ""
 #define RADIO_DEFAULT_REMOTE_LIST false
@@ -22,11 +23,66 @@ It is unaware of the Audio & LEDStatus objects.
 #define RADIO_DEFAULT_STATION_FOUR_URL ""
 #define RADIO_DEFAULT_STATION_COUNT 1
 
-#define RADIO_DEFAULT_MAX_STATION_COUNT 4 // This is determined by hardware
+#define RADIO_DEFAULT_MAX_STATION_COUNT 4  // This is determined by hardware
 
+#define RADIO_DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
 
 WiFiClient client;
 HTTPClient http;
+
+struct RadioStatus {
+
+  // This will be replaced by the below
+  // int channelIdx;
+  bool playing;
+
+
+  // These statuses are parsed to set the status code, which is used to set the LEDs
+
+  // Status code, used to set the LEDs
+  int statusCode;
+
+  // Raw inputs
+  int channelIdxInput = 0;
+  int volumeInput = 0;
+
+  // Settings
+  int channelIdx = 0;
+  int volume = 0;
+
+  // Statuses (Associated with actions)
+  bool wifiConnected = false;      // Satus of WiFi after booting. (The initial connection is handled by WifiManager, and the LEDs should be set there.)
+  bool streamConnecting = false;   // This is set before connecting to a new stream (whether starting or when changing stations)
+  bool streamPlaying = false;      // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
+  bool streamIsAdvancing = false;  // This is set by checking if the number of seconds played has advanced
+
+  // These are set during blocking and should be reported as errors, not statuses - ex: initialConnectionSuccessful is by default false until it's set to true - but it's not an error until the connection times out
+  // bool streamInitialConnectionSuccessful = false;  // Starting the stream returns success/failure, which goes here.
+
+  /*
+
+Set error code vs set status code??? (or set status code which is an error cude, set_status(100, error=true))
+Clear error code????
+
+*/
+
+  /*
+  status code numbers.
+
+  000 Idle/playing/buffering  (Success/Info)
+  100 connection errors       (Warning)
+  200 network errors          (Error)
+
+  Next, make a list of possible statuses and give them numbers and put them into the above LED Status colors
+
+  #define RADIO_STATUS_CODE_IDLE        0
+  #define RADIO_STATUS_CODE_PLAYING     1
+
+  add interpreted_status to the status struct, and compare to current status, if it's different, update.
+
+  Do not overwrite a code with one that is smaller!
+*/
+};
 
 class Radio {
   int mChannelPotPin;
@@ -51,9 +107,15 @@ class Radio {
   };
 
   void handleDebugMode();
+  void debugHandleSerialInput();
+
+  // Debugging. If debugMode is false, these are unused.
+  unsigned long lastDebugStatusUpdate = 0;
+  uint32_t debugLPS = 0;
+
 
 public:
-  Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax);
+  Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *wifiManager);
   void init();
   void getConfigFromPreferences();
   void putConfigToPreferences();
@@ -62,8 +124,14 @@ public:
   void setDebugMode();
   bool getConfigFromRemote();
   void debugPrintConfigToSerial();
+  void setStatusCode();
+  void loop();
+  void debugModeLoop();
   bool debugMode = false;
+  RadioStatus status;
   Preferences preferences;
+  LEDStatus ledStatus;
+  WiFiManager *wifiManager;
 
   // Config
   String remoteConfigURL = RADIO_DEFAULT_REMOTE_LIST_URL;
@@ -79,11 +147,14 @@ public:
   int maxStationCount = RADIO_DEFAULT_MAX_STATION_COUNT;
 };
 
-Radio::Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax) {
+Radio::Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *myWifiManager) {
   mChannelPotPin = channelPotPin;
   mVolumePotPin = volumePotPin;
   mVolumeMin = volumeMin;
   mVolumeMax = volumeMax;
+  wifiManager = myWifiManager;
+  status.playing = false;
+  status.channelIdx = 0;
 }
 
 void Radio::getConfigFromPreferences() {
@@ -227,4 +298,78 @@ void Radio::debugPrintConfigToSerial() {
   Serial.println(stn4URL);
   Serial.printf("stationCount=%d\n", stationCount);
   Serial.printf("maxStationCount=%d\n", maxStationCount);
+}
+
+void Radio::debugModeLoop() {
+  debugLPS++;
+  debugHandleSerialInput();
+  if (millis() - lastDebugStatusUpdate > RADIO_DEBUG_STATUS_UPDATE_INTERVAL_MS) {
+    Serial.printf("radio.readVolume()=%d\n", readVolume());
+    Serial.print("radio.readChannelIdx()=");
+    Serial.println(readChannelIdx());
+    Serial.printf("radio.status.channelIdx=%d\n", status.channelIdx);
+    Serial.printf("radio.status.playing=%d\n", status.playing);
+
+    int lps = debugLPS / (RADIO_DEBUG_STATUS_UPDATE_INTERVAL_MS / 1000);
+    debugLPS = 0;
+    Serial.printf("lps=%d\n", lps);
+
+    lastDebugStatusUpdate = millis();
+  }
+}
+
+void Radio::debugHandleSerialInput() {
+  while (Serial.available() > 0) {
+    DynamicJsonDocument doc(12288);
+    DeserializationError error = deserializeJson(doc, Serial);
+    if (!error) {
+
+      serializeJson(doc, Serial);
+      Serial.println("");
+
+      remoteConfigURL = doc["remoteConfigURL"] | remoteConfigURL;
+      remoteConfig = doc["remoteConfig"] | remoteConfig;
+      radioID = doc["radioID"] | radioID;
+
+      // should the stuff after | be there? if it works, then leave it alone
+      hasChannelPot = doc["hasChannelPot"] | hasChannelPot;
+      pcbVersion = doc["pcbVersion"] | pcbVersion;
+      stn1URL = doc["stn1URL"] | stn1URL;
+      stn2URL = doc["stn2URL"] | stn2URL;
+      stn3URL = doc["stn3URL"] | stn3URL;
+      stn4URL = doc["stn4URL"] | stn4URL;
+
+      if (doc["stationCount"]) {
+        stationCount = doc["stationCount"];
+      }
+
+      /* This is currently limited by the lookup table in the ChannelPot object */
+      // config.maxStationCount = doc["maxStationCount"];
+
+      putConfigToPreferences();
+
+      if (doc["clearPreferences"]) {
+        preferences.begin("config", false);
+        bool cleared = preferences.clear();
+        Serial.println("Clearing preferences, restarting for this to take effect.");
+        preferences.end();
+        ESP.restart();
+      }
+
+      if (doc["resetWiFi"]) {
+        wifiManager->resetSettings();
+        Serial.println("Executing wifiManager.resetSettings(), restarting for this to take effect.");
+        ESP.restart();
+      }
+
+      debugPrintConfigToSerial();
+    }
+  }
+}
+
+void Radio::loop() {
+  // copy and paste everything over here and get it to compile again, lol
+  if (debugMode) {
+    debugModeLoop();
+  }
 }

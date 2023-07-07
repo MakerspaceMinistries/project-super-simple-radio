@@ -37,6 +37,16 @@ This in the switch should be made into a function:
 #define LED_STATUS_ERROR 8
 #define LED_STATUS_ERROR_BLINKING 9
 
+#define LED_STATUS_DEFAULT_PIN_LED_RED 4
+#define LED_STATUS_DEFAULT_PIN_LED_GREEN 5
+#define LED_STATUS_DEFAULT_PIN_LED_BLUE 6
+#define LED_STATUS_DEFAULT_LED_ON LOW
+#define LED_STATUS_DEFAULT_LED_OFF HIGH
+
+#define LED_STATUS_DEFAULT_TIMER_NUMBER 0
+#define LED_STATUS_DEFAULT_TIMER_DIVIDER 80
+#define LED_STATUS_DEFAULT_TIMER_ALARM_VALUE 600000
+
 // The callback and variables required by the callback are global for simplicities sake.
 // This explains how to get around that: https://arduino.stackexchange.com/a/89176
 int gLedStatusRGBPins[3]{ 0, 0, 0 };
@@ -65,13 +75,25 @@ class LEDStatus {
   void writeRGB(int r, int g, int b);
 
 public:
-  LEDStatus(int rPin, int gPin, int bPin, int ledOff, int ledOn, int timerNumber, int mTimerDivider, int mTimerAlarmValue);
+  LEDStatus();
+  void configure(int rPin, int gPin, int bPin, int ledOff, int ledOn, int timerNumber, int timerDivider, int timerAlarmValue);
   void setRGB(int r, int g, int b);
   void setStatus(int status);
   void init();
 };
 
-LEDStatus::LEDStatus(int rPin, int gPin, int bPin, int ledOff = 0, int ledOn = 1, int timerNumber = 0, int timerDivider = 80, int timerAlarmValue = 600000) {
+LEDStatus::LEDStatus() {
+  mLedOn = LED_STATUS_DEFAULT_LED_ON;
+  mLedOff = LED_STATUS_DEFAULT_LED_OFF;
+  mTimerNumber = LED_STATUS_DEFAULT_TIMER_NUMBER;
+  mTimerDivider = LED_STATUS_DEFAULT_TIMER_DIVIDER;
+  mTimerAlarmValue = LED_STATUS_DEFAULT_TIMER_ALARM_VALUE;
+  gLedStatusRGBPins[0] = LED_STATUS_DEFAULT_PIN_LED_RED;
+  gLedStatusRGBPins[1] = LED_STATUS_DEFAULT_PIN_LED_GREEN;
+  gLedStatusRGBPins[2] = LED_STATUS_DEFAULT_PIN_LED_BLUE;
+}
+
+void LEDStatus::configure(int rPin, int gPin, int bPin, int ledOff = LED_STATUS_DEFAULT_LED_OFF, int ledOn = LED_STATUS_DEFAULT_LED_ON, int timerNumber = LED_STATUS_DEFAULT_TIMER_NUMBER, int timerDivider = LED_STATUS_DEFAULT_TIMER_DIVIDER, int timerAlarmValue = LED_STATUS_DEFAULT_TIMER_ALARM_VALUE) {
   mLedOn = ledOn;
   mLedOff = ledOff;
   mTimerNumber = timerNumber;
