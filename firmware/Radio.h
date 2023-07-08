@@ -9,7 +9,9 @@ It is unaware of the Audio & LEDStatus objects.
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "Audio.h"
 #include "LEDStatus.h"
+
 
 #define RADIO_DEFAULT_REMOTE_LIST_URL ""
 #define RADIO_DEFAULT_REMOTE_LIST false
@@ -26,6 +28,12 @@ It is unaware of the Audio & LEDStatus objects.
 #define RADIO_DEFAULT_MAX_STATION_COUNT 4  // This is determined by hardware
 
 #define RADIO_DEBUG_STATUS_UPDATE_INTERVAL_MS 5000
+
+#define RADIO_VOLUME_CHANNEL_READ_INTERVAL_MS 50
+
+#define RADIO_CURRENT_TIME_CHECK_INTERVAL_S 3
+
+
 
 WiFiClient client;
 HTTPClient http;
@@ -89,6 +97,9 @@ class Radio {
   int mVolumePotPin;
   int mVolumeMin;
   int mVolumeMax;
+  unsigned long lastVolumeChannelRead = 0;
+  unsigned long lastCurrentTimeCheck = 0;
+  uint32_t lastCurrentTime = 0;
 
   /*
 
@@ -108,14 +119,17 @@ class Radio {
 
   void handleDebugMode();
   void debugHandleSerialInput();
+  void checkWiFiDisconnect();
 
   // Debugging. If debugMode is false, these are unused.
   unsigned long lastDebugStatusUpdate = 0;
   uint32_t debugLPS = 0;
 
+  // TODO lastMinuteInterval should have a better name, or the function that uses it should.
+  unsigned long lastMinuteInterval = 0;
 
 public:
-  Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *wifiManager);
+  Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *myWifiManager, Audio *myAudio);
   void init();
   void getConfigFromPreferences();
   void putConfigToPreferences();
@@ -132,6 +146,7 @@ public:
   Preferences preferences;
   LEDStatus ledStatus;
   WiFiManager *wifiManager;
+  Audio *audio;
 
   // Config
   String remoteConfigURL = RADIO_DEFAULT_REMOTE_LIST_URL;
@@ -147,12 +162,13 @@ public:
   int maxStationCount = RADIO_DEFAULT_MAX_STATION_COUNT;
 };
 
-Radio::Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *myWifiManager) {
+Radio::Radio(int channelPotPin, int volumePotPin, int volumeMin, int volumeMax, WiFiManager *myWifiManager, Audio *myAudio) {
   mChannelPotPin = channelPotPin;
   mVolumePotPin = volumePotPin;
   mVolumeMin = volumeMin;
   mVolumeMax = volumeMax;
   wifiManager = myWifiManager;
+  audio = myAudio;
   status.playing = false;
   status.channelIdx = 0;
 }
@@ -207,6 +223,20 @@ void Radio::init() {
 
   getConfigFromPreferences();
   setDebugMode();
+
+  ledStatus.init();
+
+  if (debugMode) {
+    Serial.begin(115200);
+    Serial.println("DEBUG MODE ON");
+    ledStatus.setStatus(LED_STATUS_SUCCESS);
+    delay(100);
+    ledStatus.setStatus(LED_STATUS_INFO);
+    debugPrintConfigToSerial();
+  }
+
+  ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
+  ledStatus.setStatus(LED_STATUS_INFO);
 };
 
 void Radio::setDebugMode() {
@@ -367,9 +397,92 @@ void Radio::debugHandleSerialInput() {
   }
 }
 
+void Radio::checkWiFiDisconnect() {
+  // Check every minute if the wifi connection has been lost and reconnect.
+  if (millis() > lastMinuteInterval + 60 * 1000) {
+    if (debugMode) Serial.println("Checking WiFi connection...");
+    if (WiFi.status() != WL_CONNECTED) {
+      if (debugMode) Serial.println("Reconnecting to WiFi...");
+      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+      WiFi.disconnect();
+      WiFi.reconnect();
+    }
+    // Reset interval
+    lastMinuteInterval = millis();
+  }
+}
+
 void Radio::loop() {
   // copy and paste everything over here and get it to compile again, lol
   if (debugMode) {
     debugModeLoop();
+  }
+
+  // Check if the WiFi has disconnected
+  checkWiFiDisconnect();
+
+  if (millis() > lastVolumeChannelRead + RADIO_VOLUME_CHANNEL_READ_INTERVAL_MS) {
+
+    // Read the current state of the radio's inputs
+    int selectedVolume = readVolume();
+    int selectedChannelIdx = readChannelIdx();
+
+    // Setting volume doesn't use extra resources, do it even if there were no changes
+    audio->setVolume(selectedVolume);
+
+    /*
+
+    Check if the requested status is different from the current status, if different, make changes
+    
+    */
+
+    if (selectedChannelIdx != status.channelIdx) {
+      // change channel, set status.playing to false to trigger a reconnect.
+      status.channelIdx = selectedChannelIdx;
+      status.playing = false;
+    }
+
+    if (selectedVolume > 0 && !status.playing) {
+
+      // start play, set status.playing
+      ledStatus.setStatus(LED_STATUS_INFO_BLINKING);
+
+      String channels[] = { stn1URL, stn2URL, stn3URL, stn4URL };
+      char selectedChannelURL[2048];
+      channels[status.channelIdx].toCharArray(selectedChannelURL, 2048);
+      status.playing = audio->connecttohost(selectedChannelURL);
+
+      // This may overwrite an error status since it doesn't rely on a status change, but fires every VOLUME_CHANNEL_READ_INTERVAL_MS
+      if (status.playing) {
+        ledStatus.setStatus(LED_STATUS_SUCCESS);
+      } else {
+        ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+      }
+
+      if (debugMode) {
+        Serial.print("selectedChannelURL=");
+        Serial.println(selectedChannelURL);
+      }
+    }
+
+    if (selectedVolume == 0 && status.playing) {
+      // stop play, set status
+      status.playing = false;
+      audio->stopSong();
+      ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
+    }
+
+    // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+    if (status.playing && millis() > lastCurrentTimeCheck + RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 1000) {
+      lastCurrentTimeCheck = millis();
+      uint32_t currentTime = audio->getAudioCurrentTime();
+      if (currentTime - lastCurrentTime > RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 0.9) {
+        // status.playing = false;
+        lastCurrentTime = currentTime;
+        if (debugMode) {
+          Serial.print("Connection drop detected, triggering a reconnect.");
+        }
+      }
+    }
   }
 }
