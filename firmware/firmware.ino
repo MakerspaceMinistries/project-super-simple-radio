@@ -27,17 +27,23 @@ States:
   - Red                 LED_STATUS_ERROR                error
   - Red (blinking)      LED_STATUS_ERROR_BLINKING       error (blinking)
 
-Audio.h Examples/Docs/Source:
+ESP32-audioI2S Examples/Docs/Source (2.0.0, testing 3.0.0) (Installed manually):
   - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.h
   - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/src/Audio.cpp
   - https://github.com/schreibfaul1/ESP32-audioI2S/blob/master/examples/Simple_WiFi_Radio/Simple_WiFi_Radio.ino
 
+WiFiManager (2.0.16-rc.2):
+  - https://github.com/tzapu/WiFiManager
+
+ArduinoJSON (6.21.2)
+  - https://arduinojson.org/?utm_source=meta&utm_medium=library.properties
+
 TODO:
   - Pull settings from remote server
+  - TODO ESP32-audioI2S 3.0.0 has lostStreamDetection!!!
 
   Audio/DAC
   - Make sure it's using PSRAM, document how this is done
-  - Attempt to detect disconnects and set LED status
 
 */
 #define FIRMWARE_VERSION "v0.0"
@@ -63,6 +69,7 @@ Audio audio;
 
 // make a config struct, with default values. radio(radioConfig, &wifiManager, &audio)
 Radio radio(PIN_CHANNEL_POT, PIN_VOLUME_POT, VOLUME_MIN, VOLUME_MAX, &wifiManager, &audio);
+
 
 
 
