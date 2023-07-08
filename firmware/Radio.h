@@ -473,12 +473,14 @@ void Radio::loop() {
     }
 
     // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-    // TODO ESP32-audioI2S 3.0.0 has lostStreamDetection!!!
+    // TODO: RADIO_CURRENT_TIME_CHECK_INTERVAL_S should be renamed! It's not a timeout - more of a time in
     if (status.playing && millis() > lastCurrentTimeCheck + RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 1000) {
       lastCurrentTimeCheck = millis();
       uint32_t currentTime = audio->getAudioCurrentTime();
-      if (currentTime - lastCurrentTime > RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 0.9) {
-        // status.playing = false;
+
+      // Give the stream RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 2 to get started (otherwise this may check too soon and start a loop of reconnects)
+      if (currentTime > RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 2 && currentTime - lastCurrentTime < RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 0.9) {
+        status.playing = false;
         lastCurrentTime = currentTime;
         if (debugMode) {
           Serial.print("Connection drop detected, triggering a reconnect.");
