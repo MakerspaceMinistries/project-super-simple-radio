@@ -473,6 +473,7 @@ void Radio::loop() {
     }
 
     // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+    // TODO ESP32-audioI2S 3.0.0 has lostStreamDetection!!!
     if (status.playing && millis() > lastCurrentTimeCheck + RADIO_CURRENT_TIME_CHECK_INTERVAL_S * 1000) {
       lastCurrentTimeCheck = millis();
       uint32_t currentTime = audio->getAudioCurrentTime();
