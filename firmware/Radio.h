@@ -483,10 +483,10 @@ void Radio::loop() {
       // start play, set status.playing
       ledStatus.setStatus(LED_STATUS_INFO_BLINKING);
 
-      // This should be refactored, seems excessive? Can pointers be used here?
-      String channels[] = { config->stn1URL, config->stn2URL, config->stn3URL, config->stn4URL };
+      String* channels[] = { &config->stn1URL, &config->stn2URL, &config->stn3URL, &config->stn4URL };
       char selectedChannelURL[2048];
-      channels[status.channelIdx].toCharArray(selectedChannelURL, 2048);
+      channels[status.channelIdx]->toCharArray(selectedChannelURL, 2048);
+
       status.playing = audio->connecttohost(selectedChannelURL);
 
       // This may overwrite an error status since it doesn't rely on a status change, but fires every VOLUME_CHANNEL_READ_INTERVAL_MS
