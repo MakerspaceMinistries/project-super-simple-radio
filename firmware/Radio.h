@@ -175,7 +175,7 @@ void Radio::connectToStation() {
   status.playing = audio->connecttohost(selectedChannelURL);
 
   if (status.playing) {
-    ledStatus.clearAllStatusCodes(LED_STATUS_200_WARNING_LEVEL);
+    ledStatus.clearAllStatusCodesTo(LED_STATUS_200_WARNING_LEVEL);
     ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
   }
 
@@ -529,7 +529,7 @@ void Radio::loop() {
       audio->stopSong();
 
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      ledStatus.clearAllStatusCodes(LED_STATUS_200_WARNING_LEVEL);
+      ledStatus.clearAllStatusCodesTo(LED_STATUS_200_WARNING_LEVEL);
       ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
     }
 

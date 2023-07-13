@@ -118,7 +118,7 @@ public:
   void setStatusCode(int statusCode, int blockingDelay);
   void setStatusCode(int level, int code, int blockingDelay);
   void clearStatusLevel(int level);
-  void clearAllStatusCodes(int level);
+  void clearAllStatusCodesTo(int level);
   int getActiveStatusCode();
   void init(bool debugMode);
 };
@@ -271,8 +271,8 @@ void LEDStatus::clearStatusLevel(int level) {
   return setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
 }
 
-void LEDStatus::clearAllStatusCodes(int level = 0) {
-  for (int i = 3; i >= level; i--) {
+void LEDStatus::clearAllStatusCodesTo(int level = 0) {
+  for (int i = level; i >= 0; i--) {
     mStatusCodes[i] = LED_STATUS_UNSET_STATUS_CODE;
   }
 }
