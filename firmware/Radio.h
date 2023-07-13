@@ -1,8 +1,6 @@
 /*
 
-Radio contains the current state of the radio hardware, as well as some settings.
 
-It is unaware of the Audio & LEDStatus objects.
 
 */
 #include <Preferences.h>
@@ -12,8 +10,33 @@ It is unaware of the Audio & LEDStatus objects.
 #include "Audio.h"
 #include "LEDStatus.h"
 
-// Move these to the radio config?
-// #define RADIO_CURRENT_TIME_CHECK_INTERVAL_S 3
+
+/* ERRORS */
+// Setup
+#define RADIO_STATUS_300_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 300
+#define RADIO_STATUS_350_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER 350
+// Loop
+#define RADIO_STATUS_301_WIFI_CONNECTION_LOST 301
+
+/* WARNINGS */
+// Setup
+#define RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER 250
+// Loop
+#define RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING 251
+#define RADIO_STATUS_252_UNABLE_TO_CONNECT_WAITING_AND_TRYING_AGAIN 252
+
+/* SUCCESS */
+// Loop
+#define RADIO_STATUS_101_PLAYING 101
+
+/* INFO */
+// Setup
+#define RADIO_STATUS_001_RADIO_INITIALIZING 1
+// Loop
+#define RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION 51
+
+// Special Idle Status, which turns LEDs off
+#define RADIO_STATUS_000_IDLE 0
 
 WiFiClient client;
 HTTPClient http;
@@ -44,7 +67,7 @@ struct RadioConfig {
   // Intervals
   int debugStatusUpdateIntervalMs = 5000;
   int analogReadIntervalMs = 50;
-  int streamLossDetectionIntervalS = 3;
+  int streamLossDetectionIntervalS = 4;  // Less than 4 may cause rounding issues
 
   // Remote Config
   bool remoteConfig = false;
@@ -52,57 +75,24 @@ struct RadioConfig {
   String radioID = "";
 };
 
+
+
 struct RadioStatus {
 
   // This will be replaced by the below
-  bool playing;
 
-  // These statuses are parsed to set the status code, which is used to set the LEDs
-
-  // Status code, used to set the LEDs
-  int statusCode;
-
-  // Raw inputs
+  // Inputs
   int channelIdxInput = 0;
   int volumeInput = 0;
 
-  // Settings
+  // Outputs
   int channelIdx = 0;
   int volume = 0;
 
   // Statuses (Associated with actions)
-  bool wifiConnected = false;       // Satus of WiFi after booting. (The initial connection is handled by WifiManager, and the LEDs should be set there.)
-  bool streamConnecting = false;    // This is set before connecting to a new stream (whether starting or when changing stations)
-  bool streamReConnecting = false;  // Connection after a lost connection
-  bool streamPlaying = false;       // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
-  bool streamIsAdvancing = false;   // This is set by checking if the number of seconds played has advanced
-
-  // These are set during blocking and should be reported as errors, not statuses - ex: initialConnectionSuccessful is by default false until it's set to true - but it's not an error until the connection times out
-  // bool streamInitialConnectionSuccessful = false;  // Starting the stream returns success/failure, which goes here.
-
-  /*
-
-Set error code vs set status code??? (or set status code which is an error cude, set_status(100, error=true))
-Clear error code????
-
-*/
-
-  /*
-  status code numbers.
-
-  000 Idle/playing/buffering  (Success/Info)
-  100 connection errors       (Warning)
-  200 network errors          (Error)
-
-  Next, make a list of possible statuses and give them numbers and put them into the above LED Status colors
-
-  #define RADIO_STATUS_CODE_IDLE        0
-  #define RADIO_STATUS_CODE_PLAYING     1
-
-  add interpreted_status to the status struct, and compare to current status, if it's different, update.
-
-  Do not overwrite a code with one that is smaller!
-*/
+  bool wifiConnected = false;   // Status of WiFi after booting. (The initial connection is handled by WifiManager, and the LEDs should be set there.)
+  bool playing;                 // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
+  bool connectionLost = false;  // This is set by checking if the number of seconds played has advanced
 };
 
 class Radio {
@@ -112,7 +102,7 @@ class Radio {
 
   /*
 
-    Split the fader up into 13 parts (0-12), which correspond with 3 channels.
+    Example: Split the fader up into 13 parts (0-12), which correspond with 3 channels.
 
     0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
     |    3    |              2            |      1      |
@@ -132,7 +122,7 @@ class Radio {
 
   // Debugging. If debugMode is false, these are unused.
   unsigned long lastDebugStatusUpdate = 0;
-  uint32_t debugLPS = 0;
+  uint32_t debugLPS = 0;  // Loops per second
 
   // TODO lastMinuteInterval should have a better name, or the function that uses it should.
   unsigned long lastMinuteInterval = 0;
@@ -151,6 +141,8 @@ public:
   void loop();
   void debugModeLoop();
   void setDacSdMode(bool enable);
+  void connectToStation();
+  bool streamIsAdvancing();
   bool debugMode = false;
   Preferences preferences;
   LEDStatus ledStatus;
@@ -167,6 +159,30 @@ Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio) 
 
   status.playing = false;
   status.channelIdx = 0;
+}
+
+void Radio::connectToStation() {
+
+  if (status.connectionLost) {
+    ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+  } else {
+    ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION);
+  }
+
+  String *channels[] = { &config->stn1URL, &config->stn2URL, &config->stn3URL, &config->stn4URL };
+  char selectedChannelURL[2048];
+  channels[status.channelIdx]->toCharArray(selectedChannelURL, 2048);
+  status.playing = audio->connecttohost(selectedChannelURL);
+
+  if (status.playing) {
+    ledStatus.clearAllStatusCodes(LED_STATUS_200_WARNING_LEVEL);
+    ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
+  }
+
+  if (debugMode) {
+    Serial.print("selectedChannelURL=");
+    Serial.println(selectedChannelURL);
+  }
 }
 
 void Radio::getConfigFromPreferences() {
@@ -223,14 +239,10 @@ void Radio::setDacSdMode(bool enable) {
 
 void Radio::init() {
 
-  analogReadResolution(config->analogReadResolution);
-
-  pinMode(config->pinDacSdMode, OUTPUT);
+  initDebugMode();
+  ledStatus.init(debugMode);
 
   getConfigFromPreferences();
-  initDebugMode();
-
-  ledStatus.init();
 
   if (debugMode) {
     Serial.begin(115200);
@@ -242,7 +254,11 @@ void Radio::init() {
   }
 
   ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
-  ledStatus.setStatus(LED_STATUS_INFO);
+  ledStatus.setStatusCode(RADIO_STATUS_001_RADIO_INITIALIZING);
+
+  analogReadResolution(config->analogReadResolution);
+
+  pinMode(config->pinDacSdMode, OUTPUT);
 
   // Initialize WiFi/WiFiManager
   WiFi.mode(WIFI_STA);
@@ -252,9 +268,10 @@ void Radio::init() {
   if (!res) {
     if (debugMode) Serial.println("Failed to connect or hit timeout");
     // This is a hard stop
-    ledStatus.setStatus(LED_STATUS_ERROR_BLINKING);
-    delay(5000);
+    ledStatus.setStatusCode(RADIO_STATUS_350_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER, 10000);
     ESP.restart();
+  } else {
+    ledStatus.clearStatusLevel(LED_STATUS_000_INFO_LEVEL);
   }
 
   // Initialize Audio
@@ -262,16 +279,14 @@ void Radio::init() {
   audio->setVolume(0);
 
   // Get config from remote server
-
-  ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
-
-  // Get stations from config server
   bool error = getConfigFromRemote();
   if (error) {
-    ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
-    delay(5000);
+    // Show the error, but move on since the radio should be able to use the config stored in preferences.
+    ledStatus.setStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER, 10000);
+    ledStatus.clearStatusLevel(LED_STATUS_100_SUCCESS_LEVEL);
   }
 
+  ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
 };
 
 void Radio::initDebugMode() {
@@ -435,13 +450,36 @@ void Radio::checkWiFiDisconnect() {
     if (debugMode) Serial.println("Checking WiFi connection...");
     if (WiFi.status() != WL_CONNECTED) {
       if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+      ledStatus.setStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
       WiFi.disconnect();
       WiFi.reconnect();
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      ledStatus.clearStatusLevel(LED_STATUS_300_ERROR_LEVEL);
     }
     // Reset interval
     lastMinuteInterval = millis();
   }
+}
+
+bool Radio::streamIsAdvancing() {
+  bool retVal = true;
+  // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+  if (status.playing && millis() > lastCurrentTimeCheck + config->streamLossDetectionIntervalS * 1000) {
+
+    lastCurrentTimeCheck = millis();
+    uint32_t currentTime = audio->getAudioCurrentTime();
+
+    // Give the stream config->streamLossDetectionIntervalS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
+    if (currentTime > config->streamLossDetectionIntervalS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionIntervalS * 0.5) {
+      if (debugMode) {
+        Serial.print("Connection loss detected");
+      }
+      retVal = false;
+    }
+    lastCurrentTime = currentTime;
+  }
+  return retVal;
 }
 
 void Radio::loop() {
@@ -458,11 +496,11 @@ void Radio::loop() {
   if (millis() > lastVolumeChannelRead + config->analogReadIntervalMs) {
 
     // Read the current state of the radio's inputs
-    int selectedVolume = readVolume();
-    int selectedChannelIdx = readChannelIdx();
+    status.volumeInput = readVolume();
+    status.channelIdxInput = readChannelIdx();
 
     // Setting volume doesn't use extra resources, do it even if there were no changes
-    audio->setVolume(selectedVolume);
+    audio->setVolume(status.volumeInput);
 
     /*
 
@@ -470,59 +508,35 @@ void Radio::loop() {
     
     */
 
-    if (selectedChannelIdx != status.channelIdx) {
+    if (status.channelIdxInput != status.channelIdx) {
       // change channel, set status.playing to false to trigger a reconnect.
-      status.channelIdx = selectedChannelIdx;
+      status.channelIdx = status.channelIdxInput;
       status.playing = false;
     }
 
-    if (selectedVolume > 0 && !status.playing) {
-
+    if (status.volumeInput > 0 && !status.playing) {
       setDacSdMode(true);  // Turn DAC on
-
-      // start play, set status.playing
-      ledStatus.setStatus(LED_STATUS_INFO_BLINKING);
-
-      String* channels[] = { &config->stn1URL, &config->stn2URL, &config->stn3URL, &config->stn4URL };
-      char selectedChannelURL[2048];
-      channels[status.channelIdx]->toCharArray(selectedChannelURL, 2048);
-
-      status.playing = audio->connecttohost(selectedChannelURL);
-
-      // This may overwrite an error status since it doesn't rely on a status change, but fires every VOLUME_CHANNEL_READ_INTERVAL_MS
+      connectToStation();
       if (status.playing) {
-        ledStatus.setStatus(LED_STATUS_SUCCESS);
-      } else {
-        ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
-      }
-
-      if (debugMode) {
-        Serial.print("selectedChannelURL=");
-        Serial.println(selectedChannelURL);
+        status.connectionLost = false;
       }
     }
 
-    if (selectedVolume == 0 && status.playing) {
+    if (status.volumeInput == 0 && status.playing) {
       // stop play, set status
       setDacSdMode(false);  // Turn DAC off
       status.playing = false;
       audio->stopSong();
-      ledStatus.setStatus(LED_STATUS_LIGHTS_OFF);
+
+      // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
+      ledStatus.clearAllStatusCodes(LED_STATUS_200_WARNING_LEVEL);
+      ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
     }
 
-    // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-    if (status.playing && millis() > lastCurrentTimeCheck + config->streamLossDetectionIntervalS * 1000) {
-      lastCurrentTimeCheck = millis();
-      uint32_t currentTime = audio->getAudioCurrentTime();
-
-      // Give the stream config->streamLossDetectionIntervalS * 2 to get started (otherwise this may check too soon and start a loop of reconnects)
-      if (currentTime > config->streamLossDetectionIntervalS * 2 && currentTime - lastCurrentTime < config->streamLossDetectionIntervalS * 0.9) {
-        status.playing = false;
-        lastCurrentTime = currentTime;
-        if (debugMode) {
-          Serial.print("Connection drop detected, triggering a reconnect.");
-        }
-      }
+    bool advancing = streamIsAdvancing();
+    if (!advancing) {
+      status.playing = false;
+      status.connectionLost = true;
     }
   }
 }
