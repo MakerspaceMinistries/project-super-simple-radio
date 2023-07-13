@@ -66,7 +66,7 @@ void audio_info(const char *info) {
 }
 
 void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
-  radio.ledStatus.setStatus(LED_STATUS_WARNING_BLINKING);
+  radio.ledStatus.setStatusCode(RADIO_STATUS_300_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
   if (radio.debugMode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());
@@ -79,10 +79,9 @@ void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
 void setup() {
 
   // radio.debugMode = true;
-  
+
   wifiManager.setAPCallback(wifiManagerSetupCallback);
   radio.init();
-
 }
 
 void loop() {
