@@ -75,7 +75,6 @@ void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
   }
 }
 
-
 void setup() {
 
   // radio.debugMode = true;

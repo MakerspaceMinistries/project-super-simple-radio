@@ -10,7 +10,6 @@
 #include "Audio.h"
 #include "LEDStatus.h"
 
-
 /* ERRORS */
 // Setup
 #define RADIO_STATUS_300_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 300
@@ -75,8 +74,6 @@ struct RadioConfig {
   String radioID = "";
 };
 
-
-
 struct RadioStatus {
 
   // This will be replaced by the below
@@ -90,14 +87,13 @@ struct RadioStatus {
   int volume = 0;
 
   // Statuses (Associated with actions)
-  bool wifiConnected = false;   // Status of WiFi after booting. (The initial connection is handled by WifiManager, and the LEDs should be set there.)
-  bool playing;                 // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
+  bool playing = false;         // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
   bool connectionLost = false;  // This is set by checking if the number of seconds played has advanced
 };
 
 class Radio {
   unsigned long lastVolumeChannelRead = 0;
-  unsigned long lastCurrentTimeCheck = 0;
+  unsigned long lastStreamAdvancingCheck = 0;
   uint32_t lastCurrentTime = 0;
 
   /*
@@ -463,11 +459,17 @@ void Radio::checkWiFiDisconnect() {
 }
 
 bool Radio::streamIsAdvancing() {
+  /*
+  TODO:
+  - When WiFi reconnects (or when it disconnects) set playing to false
+  - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received. 
+
+  */
   bool retVal = true;
   // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-  if (status.playing && millis() > lastCurrentTimeCheck + config->streamLossDetectionIntervalS * 1000) {
+  if (status.playing && millis() > lastStreamAdvancingCheck + config->streamLossDetectionIntervalS * 1000) {
 
-    lastCurrentTimeCheck = millis();
+    lastStreamAdvancingCheck = millis();
     uint32_t currentTime = audio->getAudioCurrentTime();
 
     // Give the stream config->streamLossDetectionIntervalS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
@@ -490,7 +492,30 @@ void Radio::loop() {
     debugModeLoop();
   }
 
-  // Check if the WiFi has disconnected
+  /*
+  
+  REFACTORING THE LOOP
+
+  statuses
+    wifiConnected
+    streamConnected     (playing)
+    streamReconnecting  (connecting after failure)
+    playInput           (volume > 0)
+    volumeInput
+    channelIdxInput
+    channelIdx
+    ? streamTimedOut
+    ? initialStreamConnectionMade
+
+  actions 
+    reconnectWifi       (wifiConnected)
+      re|connect        (playInput, streamConnected, streamReconnecting)
+        disconnect      (playInput, streamConnected, streamReconnecting)
+        setChannel      (channelIdxInput, streamConnected)
+        setVolume       (volumeInput)
+
+  */
+
   checkWiFiDisconnect();
 
   if (millis() > lastVolumeChannelRead + config->analogReadIntervalMs) {
