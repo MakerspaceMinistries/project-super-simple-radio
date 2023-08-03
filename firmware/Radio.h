@@ -258,6 +258,12 @@ void Radio::init() {
 
   // Initialize WiFi/WiFiManager
   WiFi.mode(WIFI_STA);
+
+  // Example for setting a MAC address - useful for networks which require a registration and then filter by MAC address. Use a laptop to log in to the network (adding the laptop's MAC to the whitelist) and then set the radio's MAC address to match the laptop's address.
+  // This needs to come after WiFi.mode(WIFI_STA);
+  // uint8_t macAddy[] = { 0x08, 0x71, 0x90, 0x89, 0x85, 0x87 };
+  // esp_wifi_set_mac(WIFI_IF_STA, macAddy);
+
   wifiManager->setDebugOutput(debugMode);
   bool res;
   res = wifiManager->autoConnect("Radio Setup");
