@@ -93,7 +93,6 @@ void timerCallback() {
 }
 
 class LEDStatus {
-  bool mDebugMode;
   int mLedOff;
   int mLedOn;
   int mTimerNumber;
@@ -114,11 +113,12 @@ class LEDStatus {
 
 public:
   LEDStatus();
+  bool mDebugMode;
   void configure(int rPin, int gPin, int bPin, int ledOff, int ledOn, int timerNumber, int timerDivider, int timerAlarmValue);
   void setRGB(int r, int g, int b);
   void setStatus(int status);
-  void setStatusCode(int statusCode, int blockingDelay);
-  void setStatusCode(int level, int code, int blockingDelay);
+  void setStatusCode(int statusCode, int clearToLevel, int blockingDelay);
+  void setStatusCode(int level, int code, int clearToLevel, int blockingDelay);
   void clearStatusCode(int statusCode);
   void clearStatusLevel(int level);
   void clearAllStatusCodesFromZeroTo(int level);
@@ -246,24 +246,33 @@ int LEDStatus::getIndexOfActiveStatus() {
   return idx;
 }
 
-void LEDStatus::setStatusCode(int statusCode, int blockingDelay = 0) {
+void LEDStatus::setStatusCode(int statusCode, int clearToLevel = -1, int blockingDelay = 0) {
   int level = statusCode / 100;
   int code = statusCode - level * 100;
-  setStatusCode(level, code, blockingDelay);
+  setStatusCode(level, code, clearToLevel, blockingDelay);
 }
 
-void LEDStatus::setStatusCode(int level, int code, int blockingDelay) {
+void LEDStatus::setStatusCode(int level, int code, int clearToLevel, int blockingDelay) {
   /*
   Using blockingDelay sparingly, as it blocks ;)
   */
 
-  if (code == mStatusCodes[level]) { return; }
-  mStatusCodes[level] = code;
-  computeActiveStatusCode(blockingDelay);
+  if (levelCode2StatusCode(level, code) == mActiveStatusCode) { return; }
+  
+  clearAllStatusCodesFromZeroTo(clearToLevel);
+
   if (mDebugMode) {
     Serial.print("Request to set Status Code to: ");
     Serial.println(levelCode2StatusCode(level, code));
     Serial.print("Active Status Code: ");
+    Serial.println(mActiveStatusCode);
+  }
+
+  mStatusCodes[level] = code;
+  computeActiveStatusCode(blockingDelay);
+
+  if (mDebugMode) {
+    Serial.print("New Active Status Code: ");
     Serial.println(mActiveStatusCode);
   }
 }
@@ -286,7 +295,7 @@ void LEDStatus::clearStatusLevel(int level) {
   return setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
 }
 
-void LEDStatus::clearAllStatusCodesFromZeroTo(int level = 0) {
+void LEDStatus::clearAllStatusCodesFromZeroTo(int level) {
 
   // Just in case a status code is passed in stead of a level, this will prevent overwriting data.
   if (level > LED_STATUS_HIGHEST_LEVEL) {
