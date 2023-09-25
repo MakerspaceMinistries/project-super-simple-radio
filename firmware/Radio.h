@@ -284,10 +284,10 @@ void Radio::initDebugMode() {
 
   // Detect if debug mode is being requested by having the volume set to full when turned on (or reset) and then turned to 0 within 3 seconds.
   int volume = readVolume();
-  if (volume == config->volumeMax) {
+  if (volume > config->volumeMax - 2) {
     delay(3000);
     volume = readVolume();
-    if (volume == config->volumeMin) {
+    if (volume < config->volumeMin + 2) {
       debugMode = true;
       return;
     };
@@ -433,6 +433,8 @@ void Radio::handleSerialInput() {
 
       if (doc["debugMode"]) {
         debugMode = true;
+        ledStatus.mDebugMode = true;
+        wifiManager->setDebugOutput(true);
       }
 
       printConfigToSerial();
@@ -526,8 +528,7 @@ void Radio::loop() {
       status.reconnecting = false;
 
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
-      ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
+      ledStatus.setStatusCode(RADIO_STATUS_000_IDLE, LED_STATUS_200_WARNING_LEVEL);
 
       return;
     }
@@ -540,8 +541,7 @@ void Radio::loop() {
 
     // Play is requested, Play is output, make sure warnings are cleared and the success status is set.
     if (status.playInput == true && status.playOutput == true) {
-      ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
-      ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
+      ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
       return;
     }
 
@@ -552,16 +552,14 @@ void Radio::loop() {
       if (status.reconnecting) {
         ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
       } else {
-        ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_100_SUCCESS_LEVEL);
-        ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION);
+        ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION, LED_STATUS_100_SUCCESS_LEVEL);
       }
 
       status.playOutput = connectToStream();
 
       if (status.playOutput) {
         status.reconnecting = false;
-        ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
-        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
+        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
       } else {
         status.reconnecting = true;
       }
