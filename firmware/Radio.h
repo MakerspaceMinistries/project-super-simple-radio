@@ -443,6 +443,15 @@ void Radio::handleSerialInput() {
 }
 
 bool Radio::streamIsAdvancing() {
+
+  // In the case of 404s, audio->connecttohost(selectedChannelURL) will return true, since it can connect to the host (it does not check http headers). If the host returns > 310 to a HTTP GET, it will execute stopSong(), setting running to false.
+  // https://github.com/schreibfaul1/ESP32-audioI2S/blob/224373c10232c6a4210e48b317ff9376b3ac4dc9/src/Audio.cpp#L3353
+
+  bool res = audio->isRunning();
+
+  return res;
+
+
   /*
 
   THIS IS NOT WORKING AND JUST RETURNS TRUE
@@ -451,8 +460,6 @@ bool Radio::streamIsAdvancing() {
   - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received.
 
   */
-
-  return true;
 
   // // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
 
@@ -560,6 +567,8 @@ void Radio::loop() {
       // Set the LED status.
       if (status.reconnecting) {
         ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+        // Delay a few seconds before reconnecting so as not to overwhelm a server.
+        delay(5000);
       } else {
         ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION, LED_STATUS_100_SUCCESS_LEVEL);
       }
