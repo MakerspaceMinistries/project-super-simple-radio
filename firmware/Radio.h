@@ -65,8 +65,8 @@ struct RadioConfig {
 
   // Intervals
   int debugStatusUpdateIntervalMs = 5000;
-  int analogReadIntervalMs = 50;
-  int streamLossDetectionIntervalS = 4;  // Less than 4 may cause rounding issues
+  int statusCheckIntervalMs = 50;
+  int streamLossDetectionWindowS = 5;  // Less than 5 may cause rounding issues
 
   // Remote Config
   bool remoteConfig = false;
@@ -81,19 +81,21 @@ struct RadioStatus {
   // Inputs
   int channelIdxInput = 0;
   int volumeInput = 0;
+  bool playInput = false;
 
   // Outputs
-  int channelIdx = 0;
-  int volume = 0;
+  int channelIdxOutput = 0;
+  bool playOutput = false;
+
+  bool reconnecting = false;
 
   // Statuses (Associated with actions)
-  bool playing = false;         // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
-  bool connectionLost = false;  // This is set by checking if the number of seconds played has advanced
+  bool playing = false;          // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
+  bool streamAdvancing = false;  // This is set by checking if the number of seconds played has advanced
 };
 
 class Radio {
-  unsigned long lastVolumeChannelRead = 0;
-  unsigned long lastStreamAdvancingCheck = 0;
+  unsigned long lastStatusCheck = 0;
   uint32_t lastCurrentTime = 0;
 
   /*
@@ -114,14 +116,10 @@ class Radio {
 
   void handleDebugMode();
   void debugHandleSerialInput();
-  void checkWiFiDisconnect();
 
   // Debugging. If debugMode is false, these are unused.
   unsigned long lastDebugStatusUpdate = 0;
   uint32_t debugLPS = 0;  // Loops per second
-
-  // TODO lastMinuteInterval should have a better name, or the function that uses it should.
-  unsigned long lastMinuteInterval = 0;
 
 public:
   Radio(RadioConfig *config, WiFiManager *myWifiManager, Audio *myAudio);
@@ -137,7 +135,7 @@ public:
   void loop();
   void debugModeLoop();
   void setDacSdMode(bool enable);
-  void connectToStation();
+  bool connectToStream();
   bool streamIsAdvancing();
   bool debugMode = false;
   Preferences preferences;
@@ -152,33 +150,22 @@ Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio) 
   config = myConfig;
   wifiManager = myWifiManager;
   audio = myAudio;
-
-  status.playing = false;
-  status.channelIdx = 0;
 }
 
-void Radio::connectToStation() {
+bool Radio::connectToStream() {
 
-  if (status.connectionLost) {
-    ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
-  } else {
-    ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION);
-  }
+  setDacSdMode(true);  // Turn DAC on
 
   String *channels[] = { &config->stn1URL, &config->stn2URL, &config->stn3URL, &config->stn4URL };
   char selectedChannelURL[2048];
-  channels[status.channelIdx]->toCharArray(selectedChannelURL, 2048);
-  status.playing = audio->connecttohost(selectedChannelURL);
-
-  if (status.playing) {
-    ledStatus.clearAllStatusCodesTo(LED_STATUS_200_WARNING_LEVEL);
-    ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
-  }
+  channels[status.channelIdxOutput]->toCharArray(selectedChannelURL, 2048);
 
   if (debugMode) {
     Serial.print("selectedChannelURL=");
     Serial.println(selectedChannelURL);
   }
+
+  return audio->connecttohost(selectedChannelURL);
 }
 
 void Radio::getConfigFromPreferences() {
@@ -272,8 +259,6 @@ void Radio::init() {
     // This is a hard stop
     ledStatus.setStatusCode(RADIO_STATUS_350_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER, 10000);
     ESP.restart();
-  } else {
-    ledStatus.clearStatusLevel(LED_STATUS_000_INFO_LEVEL);
   }
 
   // Initialize Audio
@@ -285,13 +270,18 @@ void Radio::init() {
   if (error) {
     // Show the error, but move on since the radio should be able to use the config stored in preferences.
     ledStatus.setStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER, 10000);
-    ledStatus.clearStatusLevel(LED_STATUS_100_SUCCESS_LEVEL);
+    ledStatus.clearStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
   }
 
   ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
 };
 
 void Radio::initDebugMode() {
+
+  // If debug mode was set to true elsewhere (as part of the setup()), don't check the volume.
+  if (debugMode == true) return;
+
+  // Detect if debug mode is being requested by having the volume set to full when turned on (or reset) and then turned to 0 within 3 seconds.
   int volume = readVolume();
   if (volume == config->volumeMax) {
     delay(3000);
@@ -380,17 +370,19 @@ void Radio::debugPrintConfigToSerial() {
   Serial.println(config->stn4URL);
   Serial.printf("stationCount=%d\n", config->stationCount);
   Serial.printf("maxStationCount=%d\n", config->maxStationCount);
+  Serial.printf("pcbVersion=%d\n", config->pcbVersion);
 }
 
 void Radio::debugModeLoop() {
+  // TODO this needs updated to new status object. Maybe use what's in the status object, instead reading.
   debugLPS++;
   debugHandleSerialInput();
   if (millis() - lastDebugStatusUpdate > config->debugStatusUpdateIntervalMs) {
-    Serial.printf("radio.readVolume()=%d\n", readVolume());
-    Serial.print("radio.readChannelIdx()=");
-    Serial.println(readChannelIdx());
-    Serial.printf("radio.status.channelIdx=%d\n", status.channelIdx);
-    Serial.printf("radio.status.playing=%d\n", status.playing);
+    // Serial.printf("radio.readVolume()=%d\n", readVolume());
+    // Serial.print("radio.readChannelIdx()=");
+    // Serial.println(readChannelIdx());
+    // Serial.printf("radio.status.channelIdx=%d\n", status.channelIdxInput);
+    // Serial.printf("radio.status.playing=%d\n", status.playing);
 
     int lps = debugLPS / (config->debugStatusUpdateIntervalMs / 1000);
     debugLPS = 0;
@@ -420,10 +412,8 @@ void Radio::debugHandleSerialInput() {
       config->stn2URL = doc["stn2URL"] | config->stn2URL;
       config->stn3URL = doc["stn3URL"] | config->stn3URL;
       config->stn4URL = doc["stn4URL"] | config->stn4URL;
-
-      if (doc["stationCount"]) {
-        config->stationCount = doc["stationCount"];
-      }
+      config->stationCount = doc["stationCount"] | config->stationCount;
+      config->maxStationCount = doc["maxStationCount"] | config->maxStationCount;
 
       putConfigToPreferences();
 
@@ -446,47 +436,25 @@ void Radio::debugHandleSerialInput() {
   }
 }
 
-void Radio::checkWiFiDisconnect() {
-  // Check every minute if the wifi connection has been lost and reconnect.
-  if (millis() > lastMinuteInterval + 60 * 1000) {
-    if (debugMode) Serial.println("Checking WiFi connection...");
-    if (WiFi.status() != WL_CONNECTED) {
-      if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.setStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
-      WiFi.disconnect();
-      WiFi.reconnect();
-    }
-    if (WiFi.status() == WL_CONNECTED) {
-      ledStatus.clearStatusLevel(LED_STATUS_300_ERROR_LEVEL);
-    }
-    // Reset interval
-    lastMinuteInterval = millis();
-  }
-}
-
 bool Radio::streamIsAdvancing() {
+  // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+
   /*
   TODO:
-  - When WiFi reconnects (or when it disconnects) set playing to false
-  - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received. 
-
+  - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received.
   */
+
   bool retVal = true;
-  // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-  if (status.playing && millis() > lastStreamAdvancingCheck + config->streamLossDetectionIntervalS * 1000) {
-
-    lastStreamAdvancingCheck = millis();
-    uint32_t currentTime = audio->getAudioCurrentTime();
-
-    // Give the stream config->streamLossDetectionIntervalS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
-    if (currentTime > config->streamLossDetectionIntervalS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionIntervalS * 0.5) {
-      if (debugMode) {
-        Serial.print("Connection loss detected");
-      }
-      retVal = false;
+  uint32_t currentTime = audio->getAudioCurrentTime();
+  // Give the stream config->streamLossDetectionWindowS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
+  if (currentTime > config->streamLossDetectionWindowS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionWindowS * 0.5) {
+    if (debugMode) {
+      Serial.print("Connection loss detected");
     }
-    lastCurrentTime = currentTime;
+    retVal = false;
   }
+  lastCurrentTime = currentTime;
+
   return retVal;
 }
 
@@ -498,76 +466,99 @@ void Radio::loop() {
     debugModeLoop();
   }
 
-  /*
-  
-  REFACTORING THE LOOP
+  if (millis() > lastStatusCheck + config->statusCheckIntervalMs) {
 
-  statuses
-    wifiConnected
-    streamConnected     (playing)
-    streamReconnecting  (connecting after failure)
-    playInput           (volume > 0)
-    volumeInput
-    channelIdxInput
-    channelIdx
-    ? streamTimedOut
-    ? initialStreamConnectionMade
+    /*                                   */
+    /* Handle the WiFi connection status */
+    /*                                   */
 
-  actions 
-    reconnectWifi       (wifiConnected)
-      re|connect        (playInput, streamConnected, streamReconnecting)
-        disconnect      (playInput, streamConnected, streamReconnecting)
-        setChannel      (channelIdxInput, streamConnected)
-        setVolume       (volumeInput)
+    if (WiFi.isConnected()) {
+      ledStatus.clearStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
+    } else {
+      if (debugMode) Serial.println("Reconnecting to WiFi...");
+      ledStatus.setStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
+      WiFi.disconnect();
+      WiFi.reconnect();
 
-  */
+      return;
+    }
 
-  checkWiFiDisconnect();
+    /*                                              */
+    /* Read inputs, set computed status properties. */
+    /*                                              */
 
-  if (millis() > lastVolumeChannelRead + config->analogReadIntervalMs) {
-
-    // Read the current state of the radio's inputs
     status.volumeInput = readVolume();
+    status.playInput = (status.volumeInput > 0);
     status.channelIdxInput = readChannelIdx();
+    status.streamAdvancing = streamIsAdvancing();  // TODO - Should this be put into the if statement? It's the only place it's used.
 
-    // Setting volume doesn't use extra resources, do it even if there were no changes
-    audio->setVolume(status.volumeInput);
 
-    /*
-
-    Check if the requested status is different from the current status, if different, make changes
-    
-    */
-
-    if (status.channelIdxInput != status.channelIdx) {
-      // change channel, set status.playing to false to trigger a reconnect.
-      status.channelIdx = status.channelIdxInput;
-      status.playing = false;
+    // Check for changes in the channel selected.  If the channel has changed, it is not connected and the new connection is not a reconnection.
+    if (status.channelIdxInput != status.channelIdxOutput) {
+      status.channelIdxOutput = status.channelIdxInput;
+      status.reconnecting = false;
+      status.playOutput = false;
     }
 
-    if (status.volumeInput > 0 && !status.playing) {
-      setDacSdMode(true);  // Turn DAC on
-      connectToStation();
-      if (status.playing) {
-        status.connectionLost = false;
-      }
+    // If play is requested and a previous connection has been made, but the stream is not advancing update playOutput and specify this is a reconnect
+    if (status.playInput == true && status.playOutput == true && !status.streamAdvancing) {
+      status.playOutput = false;
+      status.reconnecting = true;
     }
 
-    if (status.volumeInput == 0 && status.playing) {
+    /*                           */
+    /* Handle playInput == false */
+    /*                           */
+
+    // If the play input is false, but it was playing or reconnecting last cycle => disconnect.
+    if (status.playInput == false && (status.playOutput == true || status.reconnecting == true)) {
       // stop play, set status
       setDacSdMode(false);  // Turn DAC off
-      status.playing = false;
       audio->stopSong();
 
+      status.playOutput = false;
+      status.reconnecting = false;
+
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      ledStatus.clearAllStatusCodesTo(LED_STATUS_200_WARNING_LEVEL);
+      ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
       ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
+
+      return;
     }
 
-    bool advancing = streamIsAdvancing();
-    if (!advancing) {
-      status.playing = false;
-      status.connectionLost = true;
+    /*                          */
+    /* Handle playInput == true */
+    /*                          */
+
+    audio->setVolume(status.volumeInput);
+
+    // Play is requested, Play is output, make sure warnings are cleared and the success status is set.
+    if (status.playInput == true && status.playOutput == true) {
+      ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
+      ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
+      return;
+    }
+
+    // The input says to play, but the output is not play
+    if (status.playInput == true && status.playOutput == false) {
+
+      // Set the LED status.
+      if (status.reconnecting) {
+        ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+      } else {
+        ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_100_SUCCESS_LEVEL);
+        ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION);
+      }
+
+      status.playOutput = connectToStream();
+
+      if (status.playOutput) {
+        status.reconnecting = false;
+        ledStatus.clearAllStatusCodesFromZeroTo(LED_STATUS_200_WARNING_LEVEL);
+        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING);
+      } else {
+        status.reconnecting = true;
+      }
     }
   }
 }
