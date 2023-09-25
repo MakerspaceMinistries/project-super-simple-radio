@@ -69,6 +69,8 @@ This in the switch should be made into a function:
 
 #define LED_STATUS_UNSET_STATUS_CODE -1
 
+#define LED_STATUS_HIGHEST_LEVEL 3
+
 #define LED_STATUS_300_ERROR_LEVEL 3
 #define LED_STATUS_200_WARNING_LEVEL 2
 #define LED_STATUS_100_SUCCESS_LEVEL 1
@@ -117,8 +119,9 @@ public:
   void setStatus(int status);
   void setStatusCode(int statusCode, int blockingDelay);
   void setStatusCode(int level, int code, int blockingDelay);
+  void clearStatusCode(int statusCode);
   void clearStatusLevel(int level);
-  void clearAllStatusCodesTo(int level);
+  void clearAllStatusCodesFromZeroTo(int level);
   int getActiveStatusCode();
   void init(bool debugMode);
 };
@@ -251,8 +254,6 @@ void LEDStatus::setStatusCode(int statusCode, int blockingDelay = 0) {
 
 void LEDStatus::setStatusCode(int level, int code, int blockingDelay) {
   /*
-  returns true if status code is changed
-
   Using blockingDelay sparingly, as it blocks ;)
   */
 
@@ -267,11 +268,31 @@ void LEDStatus::setStatusCode(int level, int code, int blockingDelay) {
   }
 }
 
+void LEDStatus::clearStatusCode(int statusCode) {
+
+  // TODO: refactor this - it's duplicated
+  int level = statusCode / 100;
+  int code = statusCode - level * 100;
+
+  // TODO: refactor this - mStatusCodes[level] - it's duplicated and should be a getter that takes a level. The comparator could be refactored as well?
+  if (code == mStatusCodes[level]) {
+    int level = statusCode / 100;
+    setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
+  }
+  return;
+}
+
 void LEDStatus::clearStatusLevel(int level) {
   return setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
 }
 
-void LEDStatus::clearAllStatusCodesTo(int level = 0) {
+void LEDStatus::clearAllStatusCodesFromZeroTo(int level = 0) {
+
+  // Just in case a status code is passed in stead of a level, this will prevent overwriting data.
+  if (level > LED_STATUS_HIGHEST_LEVEL) {
+    level = level / 100;
+  }
+
   for (int i = level; i >= 0; i--) {
     mStatusCodes[i] = LED_STATUS_UNSET_STATUS_CODE;
   }
