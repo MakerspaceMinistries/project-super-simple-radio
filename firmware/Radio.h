@@ -488,6 +488,9 @@ void Radio::loop() {
       WiFi.disconnect();
       WiFi.reconnect();
 
+      // Sleep to allow it to reconnect before triggering another disconnect.
+      delay(10000);
+
       return;
     }
 
