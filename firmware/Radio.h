@@ -443,25 +443,31 @@ void Radio::handleSerialInput() {
 }
 
 bool Radio::streamIsAdvancing() {
-  // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-
   /*
+
+  THIS IS NOT WORKING AND JUST RETURNS TRUE
+
   TODO:
   - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received.
+
   */
 
-  bool retVal = true;
-  uint32_t currentTime = audio->getAudioCurrentTime();
-  // Give the stream config->streamLossDetectionWindowS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
-  if (currentTime > config->streamLossDetectionWindowS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionWindowS * 0.5) {
-    if (debugMode) {
-      Serial.print("Connection loss detected");
-    }
-    retVal = false;
-  }
-  lastCurrentTime = currentTime;
+  return true;
 
-  return retVal;
+  // // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
+
+  // bool retVal = true;
+  // uint32_t currentTime = audio->getAudioCurrentTime();
+  // // Give the stream config->streamLossDetectionWindowS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
+  // if (currentTime > config->streamLossDetectionWindowS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionWindowS * 0.5) {
+  //   if (debugMode) {
+  //     Serial.print("Connection loss detected");
+  //   }
+  //   retVal = false;
+  // }
+  // lastCurrentTime = currentTime;
+
+  // return retVal;
 }
 
 void Radio::loop() {
