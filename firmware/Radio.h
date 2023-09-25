@@ -115,7 +115,7 @@ class Radio {
   };
 
   void handleDebugMode();
-  void debugHandleSerialInput();
+  void handleSerialInput();
 
   // Debugging. If debugMode is false, these are unused.
   unsigned long lastDebugStatusUpdate = 0;
@@ -130,7 +130,7 @@ public:
   int readVolume();
   void initDebugMode();
   bool getConfigFromRemote();
-  void debugPrintConfigToSerial();
+  void printConfigToSerial();
   void setStatusCode();
   void loop();
   void debugModeLoop();
@@ -222,18 +222,19 @@ void Radio::setDacSdMode(bool enable) {
 
 void Radio::init() {
 
+  Serial.begin(115200);
+
   initDebugMode();
   ledStatus.init(debugMode);
 
   getConfigFromPreferences();
 
   if (debugMode) {
-    Serial.begin(115200);
     Serial.println("DEBUG MODE ON");
     ledStatus.setStatus(LED_STATUS_SUCCESS);
     delay(100);
     ledStatus.setStatus(LED_STATUS_INFO);
-    debugPrintConfigToSerial();
+    printConfigToSerial();
   }
 
   ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
@@ -351,7 +352,7 @@ bool Radio::getConfigFromRemote() {
   return false;
 }
 
-void Radio::debugPrintConfigToSerial() {
+void Radio::printConfigToSerial() {
   Serial.printf("FIRMWARE_VERSION=%s\n", FIRMWARE_VERSION);
   Serial.println("-----------");
   Serial.println("Radio Config");
@@ -376,7 +377,6 @@ void Radio::debugPrintConfigToSerial() {
 void Radio::debugModeLoop() {
   // TODO this needs updated to new status object. Maybe use what's in the status object, instead reading.
   debugLPS++;
-  debugHandleSerialInput();
   if (millis() - lastDebugStatusUpdate > config->debugStatusUpdateIntervalMs) {
     // Serial.printf("radio.readVolume()=%d\n", readVolume());
     // Serial.print("radio.readChannelIdx()=");
@@ -392,7 +392,7 @@ void Radio::debugModeLoop() {
   }
 }
 
-void Radio::debugHandleSerialInput() {
+void Radio::handleSerialInput() {
   while (Serial.available() > 0) {
     DynamicJsonDocument doc(12288);
     DeserializationError error = deserializeJson(doc, Serial);
@@ -431,7 +431,7 @@ void Radio::debugHandleSerialInput() {
         ESP.restart();
       }
 
-      debugPrintConfigToSerial();
+      printConfigToSerial();
     }
   }
 }
@@ -461,6 +461,8 @@ bool Radio::streamIsAdvancing() {
 void Radio::loop() {
 
   audio->loop();
+
+  handleSerialInput();
 
   if (debugMode) {
     debugModeLoop();
