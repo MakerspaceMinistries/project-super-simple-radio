@@ -431,6 +431,10 @@ void Radio::handleSerialInput() {
         ESP.restart();
       }
 
+      if (doc["debugMode"]) {
+        debugMode = true;
+      }
+
       printConfigToSerial();
     }
   }
