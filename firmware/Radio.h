@@ -12,8 +12,8 @@
 
 /* ERRORS */
 // Setup
-#define RADIO_STATUS_300_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 300
-#define RADIO_STATUS_350_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER 350
+#define RADIO_STATUS_300_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER 300
+#define RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 350
 // Loop
 #define RADIO_STATUS_301_WIFI_CONNECTION_LOST 301
 
@@ -258,7 +258,7 @@ void Radio::init() {
   if (!res) {
     if (debugMode) Serial.println("Failed to connect or hit timeout");
     // This is a hard stop
-    ledStatus.setStatusCode(RADIO_STATUS_350_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER, 10000);
+    ledStatus.setStatusCode(RADIO_STATUS_300_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER, 10000);
     ESP.restart();
   }
 
