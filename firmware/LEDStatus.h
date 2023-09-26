@@ -285,13 +285,13 @@ void LEDStatus::clearStatusCode(int statusCode) {
   // TODO: refactor this - mStatusCodes[level] - it's duplicated and should be a getter that takes a level. The comparator could be refactored as well?
   if (code == mStatusCodes[level]) {
     int level = statusCode / 100;
-    setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
+    setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, -1, 0);
   }
   return;
 }
 
 void LEDStatus::clearStatusLevel(int level) {
-  return setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, 0);
+  return setStatusCode(level, LED_STATUS_UNSET_STATUS_CODE, -1, 0);
 }
 
 void LEDStatus::clearAllStatusCodesFromZeroTo(int level) {
