@@ -1,14 +1,50 @@
-/*
-
-
-
-*/
 #include <Preferences.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "Audio.h"
 #include "LEDStatus.h"
+
+/*
+
+TODO:
+
+  Fix
+    - WiFiManager webpage needs customized.
+  Document Programming Flow:
+    1. Creating the firmware file.
+      1. Use Sketch->Export Compiled Binary to create firmware that uses the settings from Tools. (USB CDC, etc)
+      2. Install this on a box and connect the box to a temporary WiFi network, then download the final firmware
+    2. Writing the firmware.
+      1. Using an adapter, write the firmware to the board before install in a box with esptool.py. This way it will be prepared to receieve firmware and serial over the USB port
+      2. Board is installed in box.
+      3. (Optional) firmware is updated
+      4. Python script generates an ID, sends it via serial, prints label to place on box. (Radio is added to database???)
+  Refactor
+    - The LEDStatus file needs refactored from scratch. It's working, but could be simplified.
+
+TESTS:
+
+  Setup:
+    - No WiFi Network
+      - [X] Blink Red
+    - No config server
+      - [ ] Blink Yellow and continue
+
+  Loop:  
+    - WiFi Loss (Restart router)
+      - [X] LED should be red, device should reconnect when WiFi turns back on
+    - Connection is made before stream has started
+      - [X] LED should be yellow
+      - [X] Radio should connect when stream comes on
+    - Connection lost after stream started
+      - [ ] LED should be yellow
+      - [ ] Radio should connect when stream comes on
+    - Channel Change
+      - [X] Channel should change
+      - [X] LED should turn blue until it does.
+
+*/
 
 /* ERRORS */
 // Setup
