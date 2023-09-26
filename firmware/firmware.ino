@@ -58,7 +58,7 @@ ArduinoJSON (6.21.2)
   - https://arduinojson.org/?utm_source=meta&utm_medium=library.properties
     
 */
-#define FIRMWARE_VERSION "v0.0"
+#define FIRMWARE_VERSION "v1.0.0-beta.1"
 
 #include <WiFiManager.h>
 #include "Audio.h"
