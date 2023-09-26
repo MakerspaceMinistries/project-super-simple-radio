@@ -394,7 +394,7 @@ void Radio::debugModeLoop() {
 
 void Radio::handleSerialInput() {
   while (Serial.available() > 0) {
-    DynamicJsonDocument doc(12288);
+    DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, Serial);
     if (!error) {
 
