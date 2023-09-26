@@ -100,7 +100,6 @@ class LEDStatus {
   int mTimerAlarmValue;
   int mStatusCodes[4] = { LED_STATUS_UNSET_STATUS_CODE, LED_STATUS_UNSET_STATUS_CODE, LED_STATUS_UNSET_STATUS_CODE, LED_STATUS_UNSET_STATUS_CODE };
   int mActiveStatusCode = 0;
-  int gLedStatusRGBActive[3] = { 0, 0, 0 };
   hw_timer_t *mTimerBlink = NULL;
   void setRGBActive(int r, int g, int b);
   void timerEnable();
