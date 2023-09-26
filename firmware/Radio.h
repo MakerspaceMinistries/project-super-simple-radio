@@ -353,13 +353,15 @@ bool Radio::getConfigFromRemote() {
 }
 
 void Radio::printConfigToSerial() {
-  Serial.printf("FIRMWARE_VERSION=%s\n", FIRMWARE_VERSION);
+  Serial.print("FIRMWARE_VERSION=");
+  Serial.println(FIRMWARE_VERSION);
   Serial.println("-----------");
   Serial.println("Radio Config");
   Serial.print("remoteConfigURL=");
   Serial.println(config->remoteConfigURL);
   Serial.printf("remoteConfig=%d\n", config->remoteConfig);
-  Serial.printf("radioID=%s\n", config->radioID);
+  Serial.print("radioID=");
+  Serial.println(config->radioID);
   Serial.printf("hasChannelPot=%d\n", config->hasChannelPot);
   Serial.print("stn1URL=");
   Serial.println(config->stn1URL);
@@ -371,7 +373,8 @@ void Radio::printConfigToSerial() {
   Serial.println(config->stn4URL);
   Serial.printf("stationCount=%d\n", config->stationCount);
   Serial.printf("maxStationCount=%d\n", config->maxStationCount);
-  Serial.printf("pcbVersion=%d\n", config->pcbVersion);
+  Serial.print("pcbVersion=");
+  Serial.println(config->pcbVersion);
 }
 
 void Radio::debugModeLoop() {
