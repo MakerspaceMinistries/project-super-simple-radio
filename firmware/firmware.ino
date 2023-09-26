@@ -1,17 +1,23 @@
 /*
 
-Example serial message for configuring the radio.
+Example serial messages for configuring the radio.
+
 {
   "remoteConfigURL":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
-  "remoteConfig":true,
   "radioID":"radioID",
+  "pcbVersion":"v1-USMX.beta-1",
+  "remoteConfig":true,
   "hasChannelPot":true,
-  "pcbVersion":"pcbVersion",
-  "stn1URL":"http://acc-radio.raiotech.com/mansfield.mp3",
-  "stn2URL":"https://broadcastify.cdnstream1.com/5974",
-  "stn3URL":"https://paineldj6.com.br:20030/stream?type=.mp3",
-  "stn4URL":"https://s1-fmt2.liveatc.net/kmfd1_zob04",
   "stationCount":4
+}
+
+It appears that it's too large to send all at once, so it is broken into parts.
+
+{
+  "stn1URL":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn2URL":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn3URL":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn4URL":"http://acc-radio.raiotech.com/connect-test.mp3"
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
