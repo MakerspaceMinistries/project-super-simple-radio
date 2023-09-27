@@ -9,8 +9,6 @@
 
 TODO:
 
-  Fix
-    - WiFiManager webpage needs customized.
   Document Programming Flow:
     1. Creating the firmware file.
       1. Use Sketch->Export Compiled Binary to create firmware that uses the settings from Tools. (USB CDC, etc)
