@@ -298,6 +298,9 @@ void Radio::init() {
     ESP.restart();
   }
 
+  // WiFi is connected, clear the code, if set.
+  ledStatus.clearStatusCode(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  
   // Initialize Audio
   audio->setPinout(config->pinI2sBclk, config->pinI2sLrc, config->pinI2sDout);
   audio->setVolume(0);
