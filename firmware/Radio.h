@@ -29,7 +29,7 @@ TESTS:
     - No WiFi Network
       - [X] Blink Red
     - No config server
-      - [ ] Blink Yellow and continue
+      - [X] Blink Yellow and continue
 
   Loop:  
     - WiFi Loss (Restart router)
@@ -38,8 +38,12 @@ TESTS:
       - [X] LED should be yellow
       - [X] Radio should connect when stream comes on
     - Connection lost after stream started
-      - [ ] LED should be yellow
-      - [ ] Radio should connect when stream comes on
+      - LED should be yellow
+        - [X] When connection becomes a 404
+        - [X] When server cannot be reached (timeout)
+      - Radio should connect when stream comes on
+        - [X] When connection becomes a 404
+        - [X] When server cannot be reached (timeout)
     - Channel Change
       - [X] Channel should change
       - [X] LED should turn blue until it does.
@@ -307,7 +311,7 @@ void Radio::init() {
   bool error = getConfigFromRemote();
   if (error) {
     // Show the error, but move on since the radio should be able to use the config stored in preferences.
-    ledStatus.setStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER, 10000);
+    ledStatus.setStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER, -1, 10000);
     ledStatus.clearStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
   }
 
@@ -501,30 +505,6 @@ bool Radio::streamIsAdvancing() {
 
   return res;
 
-
-  /*
-
-  THIS IS NOT WORKING AND JUST RETURNS TRUE
-
-  TODO:
-  - Check out streamDetection - source code would need edited, but that would be the best place to understand the buffer usage and last time data was received.
-
-  */
-
-  // // Check if the audio->getAudioCurrentTime() is advancing, if not, set the status to match (triggering a reconnect).
-
-  // bool retVal = true;
-  // uint32_t currentTime = audio->getAudioCurrentTime();
-  // // Give the stream config->streamLossDetectionWindowS * 3 to get started (otherwise this may check too soon and start a loop of reconnects)
-  // if (currentTime > config->streamLossDetectionWindowS * 3 && currentTime - lastCurrentTime < config->streamLossDetectionWindowS * 0.5) {
-  //   if (debugMode) {
-  //     Serial.print("Connection loss detected");
-  //   }
-  //   retVal = false;
-  // }
-  // lastCurrentTime = currentTime;
-
-  // return retVal;
 }
 
 void Radio::loop() {
