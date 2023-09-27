@@ -298,7 +298,7 @@ void Radio::init() {
 
   // WiFi is connected, clear the code, if set.
   ledStatus.clearStatusCode(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
-  
+
   // Initialize Audio
   audio->setPinout(config->pinI2sBclk, config->pinI2sLrc, config->pinI2sDout);
   audio->setVolume(0);
@@ -481,6 +481,10 @@ void Radio::handleSerialInput() {
         String ssid = doc["ssid"];
         String pass = doc["pass"];
         WiFi.begin(ssid.c_str(), pass.c_str(), 0, NULL, true);
+      }
+
+      if (doc["restartESP"]) {
+        ESP.restart();
       }
 
       printConfigToSerial();
