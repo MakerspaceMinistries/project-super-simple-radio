@@ -48,10 +48,9 @@ TESTS:
 
 /* ERRORS */
 // Setup
-#define RADIO_STATUS_300_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER 300
 #define RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 350
 // Loop
-#define RADIO_STATUS_301_WIFI_CONNECTION_LOST 301
+#define RADIO_STATUS_300_WIFI_CONNECTION_LOST 300
 
 /* WARNINGS */
 // Setup
@@ -289,13 +288,12 @@ void Radio::init() {
   // esp_wifi_set_mac(WIFI_IF_STA, macAddy);
 
   wifiManager->setDebugOutput(debugMode);
-  bool res;
-  res = wifiManager->autoConnect("Radio Setup");
-  if (!res) {
-    if (debugMode) Serial.println("Failed to connect or hit timeout");
-    // This is a hard stop
-    ledStatus.setStatusCode(RADIO_STATUS_300_FAILED_TO_CONNECT_AFTER_WIFI_MANAGER, 10000);
-    ESP.restart();
+  wifiManager->setConfigPortalBlocking(false);
+  wifiManager->autoConnect("Radio Setup");
+  while (!WiFi.isConnected()) {
+    // While the WiFi manager is active, handle its loop, as well as serial input.
+    wifiManager->process();
+    handleSerialInput();
   }
 
   // WiFi is connected, clear the code, if set.
@@ -479,6 +477,12 @@ void Radio::handleSerialInput() {
         wifiManager->setDebugOutput(true);
       }
 
+      if (doc["ssid"]) {
+        String ssid = doc["ssid"];
+        String pass = doc["pass"];
+        WiFi.begin(ssid.c_str(), pass.c_str(), 0, NULL, true);
+      }
+
       printConfigToSerial();
     }
   }
@@ -536,10 +540,10 @@ void Radio::loop() {
     /*                                   */
 
     if (WiFi.isConnected()) {
-      ledStatus.clearStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
+      ledStatus.clearStatusCode(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
     } else {
       if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.setStatusCode(RADIO_STATUS_301_WIFI_CONNECTION_LOST);
+      ledStatus.setStatusCode(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
       WiFi.disconnect();
       WiFi.reconnect();
 
