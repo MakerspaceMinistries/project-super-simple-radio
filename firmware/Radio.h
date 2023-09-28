@@ -69,7 +69,8 @@ TESTS:
 // Setup
 #define RADIO_STATUS_001_RADIO_INITIALIZING 1
 // Loop
-#define RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION 51
+#define RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION 2
+#define RADIO_STATUS_051_BUFFERING 51
 
 // Special Idle Status, which turns LEDs off
 #define RADIO_STATUS_000_IDLE 0
@@ -122,13 +123,12 @@ struct RadioStatus {
 
   // Outputs
   int channelIdxOutput = 0;
-  bool playOutput = false;
 
-  bool reconnecting = false;
+  bool reconnectingToStream = false;
 
   // Statuses (Associated with actions)
-  bool playing = false;          // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
-  bool streamAdvancing = false;  // This is set by checking if the number of seconds played has advanced
+  bool playing = false;  // (this is volume > 0 and connection successful) Changing volume from 0 to something greater than 0 requests the stream. Changing the volume to 0 stops the stream.
+  bool streamConnectEstablished = false;
 };
 
 class Radio {
@@ -172,8 +172,8 @@ public:
   void loop();
   void debugModeLoop();
   void setDacSdMode(bool enable);
-  bool connectToStream();
-  bool streamIsAdvancing();
+  bool connectToStreamHost();
+  bool streamIsRunning();
   bool debugMode = false;
   Preferences preferences;
   LEDStatus ledStatus;
@@ -189,7 +189,7 @@ Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio) 
   audio = myAudio;
 }
 
-bool Radio::connectToStream() {
+bool Radio::connectToStreamHost() {
 
   setDacSdMode(true);  // Turn DAC on
 
@@ -494,15 +494,25 @@ void Radio::handleSerialInput() {
   }
 }
 
-bool Radio::streamIsAdvancing() {
+bool Radio::streamIsRunning() {
 
-  // In the case of 404s, audio->connecttohost(selectedChannelURL) will return true, since it can connect to the host (it does not check http headers). If the host returns > 310 to a HTTP GET, it will execute stopSong(), setting running to false.
-  // https://github.com/schreibfaul1/ESP32-audioI2S/blob/224373c10232c6a4210e48b317ff9376b3ac4dc9/src/Audio.cpp#L3353
+  /*
 
-  bool res = audio->isRunning();
+  isRunning() returns audio->m_f_running
 
-  return res;
+  audio->isRunning() will reflect any timeouts or 404s:
 
+  Timeouts:
+    - connecttohost() will set m_f_running to true after connecting to the host (even if they host returns a 404)
+    - loop > processWebStream > streamDetection checks the buffer. If no data has been received in 3 seconds, it executes connecttohost()
+    - connecttohost() executes setDefaults(), which sets m_f_running=false
+
+  404s:
+    - loop > parseHttpResponseHeader checks if the status code is > 310, if so it executes stopSong(), which sets m_f_running to false.
+
+  */
+
+  return audio->isRunning();
 }
 
 void Radio::loop() {
@@ -542,38 +552,36 @@ void Radio::loop() {
     status.volumeInput = readVolume();
     status.playInput = (status.volumeInput > 0);
     status.channelIdxInput = readChannelIdx();
-    status.streamAdvancing = streamIsAdvancing();  // TODO - Should this be put into the if statement? It's the only place it's used.
-
 
     // Check for changes in the channel selected.  If the channel has changed, it is not connected and the new connection is not a reconnection.
     if (status.channelIdxInput != status.channelIdxOutput) {
       status.channelIdxOutput = status.channelIdxInput;
-      status.reconnecting = false;
-      status.playOutput = false;
+      status.reconnectingToStream = false;
+      status.streamConnectEstablished = false;
+      audio->stopSong();
     }
 
-    // If play is requested and a previous connection has been made, but the stream is not advancing update playOutput and specify this is a reconnect
-    if (status.playInput == true && status.playOutput == true && !status.streamAdvancing) {
-      status.playOutput = false;
-      status.reconnecting = true;
+    // If play is requested and the stream had previously been connected, then the stream is reconnecting.
+    if (status.playInput && status.streamConnectEstablished && !streamIsRunning()) {
+      status.streamConnectEstablished = false;
+      status.reconnectingToStream = true;
     }
 
     /*                           */
     /* Handle playInput == false */
     /*                           */
 
-    // If the play input is false, but it was playing or reconnecting last cycle => disconnect.
-    if (status.playInput == false && (status.playOutput == true || status.reconnecting == true)) {
-      // stop play, set status
-      setDacSdMode(false);  // Turn DAC off
-      audio->stopSong();
-
-      status.playOutput = false;
-      status.reconnecting = false;
-
+    if (!status.playInput) {
+      // If the play input is false, but it was playing or reconnecting last cycle => disconnect.
+      if (status.streamConnectEstablished || streamIsRunning() || status.reconnectingToStream) {
+        // stop play, set status
+        status.streamConnectEstablished = false;
+        status.reconnectingToStream = false;
+        setDacSdMode(false);  // Turn DAC off
+        audio->stopSong();
+      }
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
       ledStatus.setStatusCode(RADIO_STATUS_000_IDLE, LED_STATUS_200_WARNING_LEVEL);
-
       return;
     }
 
@@ -583,32 +591,35 @@ void Radio::loop() {
 
     audio->setVolume(status.volumeInput);
 
-    // Play is requested, Play is output, make sure warnings are cleared and the success status is set.
-    if (status.playInput == true && status.playOutput == true) {
-      ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
+    // Play is requested, There is a connection to the host, and the stream is running. Make sure warnings are cleared and the success status is set.
+    if (status.playInput == true && streamIsRunning()) {
+      status.reconnectingToStream = false;
+      status.streamConnectEstablished = true;
+
+      if (audio->inBufferFilled() > 0) {
+        // Once there is something in the buffer (ie: when more than just a connection to the host is made) update the status
+        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
+      } else {
+        // If the buffer is still at 0, then blink blue.
+        ledStatus.setStatusCode(RADIO_STATUS_051_BUFFERING, LED_STATUS_200_WARNING_LEVEL);
+      }
       return;
     }
 
-    // The input says to play, but the output is not play
-    if (status.playInput == true && status.playOutput == false) {
+    // The input says to play, but there is no connection to the stream host.
+    if (status.playInput == true && !streamIsRunning()) {
 
       // Set the LED status.
-      if (status.reconnecting) {
+      if (status.reconnectingToStream) {
         ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
         // Delay a few seconds before reconnecting so as not to overwhelm a server.
+        // TODO - make this not blocking
         delay(5000);
       } else {
-        ledStatus.setStatusCode(RADIO_STATUS_051_INITIAL_STREAMING_CONNECTION, LED_STATUS_100_SUCCESS_LEVEL);
+        ledStatus.setStatusCode(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_100_SUCCESS_LEVEL);
       }
 
-      status.playOutput = connectToStream();
-
-      if (status.playOutput) {
-        status.reconnecting = false;
-        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
-      } else {
-        status.reconnecting = true;
-      }
+      connectToStreamHost();
     }
   }
 }
