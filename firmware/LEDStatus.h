@@ -52,9 +52,9 @@ struct LEDStatusConfig {
 
 class LEDStatus {
 public:
-  LEDStatus(LEDStatusConfig *config);
+  LEDStatus();
   int get_status();
-  void init(bool debug);
+  void init(LEDStatusConfig *config, bool debug = false);
   void set_status(int status, int force_to_status = LED_STATUS_UNSET);
   void set_debug(bool debug);
   void clear_status(int status);
@@ -77,18 +77,18 @@ private:
   void set_status_(int status);
 };
 
-LEDStatus::LEDStatus(LEDStatusConfig *config) {
-  m_config_ = config;
-}
+LEDStatus::LEDStatus(){};
 
 /**
  * Initializes the LEDStatus instance.
  * 
  * This function must be called before using other methods in this class. It sets up the pins for the LEDs and initializes the timer.
  *
- * @param debug Boolean indicating if debug mode is on. If true, debug messages will be sent to the Serial output.
+ * @param status The LEDStatusConfig object for configuring the pins, timer, and logic.
+ * @param debug Boolean. Optional parameter. indicating if debug mode is on. If true, debug messages will be sent to the Serial output.
  */
-void LEDStatus::init(bool debug) {
+void LEDStatus::init(LEDStatusConfig *config, bool debug) {
+  m_config_ = config;
   m_debug_ = debug;
 
   for (int i = 0; i < 3; i++) {
@@ -150,7 +150,8 @@ void LEDStatus::clear_status(int status) {
     debug_output("Clearing status: ", status);
     set_status(LED_STATUS_IDLE_STATUS_CODE, status);
   } else {
-    debug_output("Attempting to clear status that is not active: ", status);
+    // This needs to be optional or removed as it may be used often "just in case" and will result in flooding the debug output
+    // debug_output("Attempting to clear status that is not active: ", status);
   }
 }
 
@@ -238,4 +239,3 @@ void LEDStatus::hardware_timer_enable_() {
 void LEDStatus::hardware_timer_disable_() {
   timerAlarmDisable(m_hardware_timer_);
 }
-
