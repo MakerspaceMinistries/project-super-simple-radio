@@ -58,7 +58,7 @@ ArduinoJSON (6.21.2)
   - https://arduinojson.org/?utm_source=meta&utm_medium=library.properties
     
 */
-#define FIRMWARE_VERSION "v1.0.0-beta.1"
+#define FIRMWARE_VERSION "v1.0.0-beta.2"
 
 #include <WiFiManager.h>
 #include "Audio.h"
@@ -67,8 +67,9 @@ ArduinoJSON (6.21.2)
 WiFiManager wifiManager;
 Audio audio;
 RadioConfig radioConfig;
+LEDStatusConfig ledStatusConfig;
 
-Radio radio(&radioConfig, &wifiManager, &audio);
+Radio radio(&radioConfig, &wifiManager, &audio, &ledStatusConfig);
 
 // Callbacks which need the radio instance
 void audio_info(const char *info) {
@@ -80,7 +81,7 @@ void audio_info(const char *info) {
 }
 
 void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
-  radio.ledStatus.setStatusCode(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  radio.ledStatus.set_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
   if (radio.debugMode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());

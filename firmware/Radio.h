@@ -18,8 +18,6 @@ TODO:
       2. Board is installed in box.
       3. (Optional) firmware is updated
       4. Python script generates an ID, sends it via serial, prints label to place on box. (Radio is added to database???)
-  Refactor
-    - The LEDStatus file needs refactored from scratch. It's working, but could be simplified.
 
 TESTS:
 
@@ -73,7 +71,7 @@ TESTS:
 #define RADIO_STATUS_051_BUFFERING 51
 
 // Special Idle Status, which turns LEDs off
-#define RADIO_STATUS_000_IDLE 0
+#define RADIO_STATUS_NEGATIVE_1_IDLE -100
 
 WiFiClient client;
 HTTPClient http;
@@ -159,7 +157,7 @@ class Radio {
   uint32_t debugLPS = 0;  // Loops per second
 
 public:
-  Radio(RadioConfig *config, WiFiManager *myWifiManager, Audio *myAudio);
+  Radio(RadioConfig *config, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *ledStatusConfig);
   void init();
   void getConfigFromPreferences();
   void putConfigToPreferences();
@@ -177,16 +175,18 @@ public:
   bool debugMode = false;
   Preferences preferences;
   LEDStatus ledStatus;
+  LEDStatusConfig *ledStatusConfig;
   RadioStatus status;
   RadioConfig *config;
   WiFiManager *wifiManager;
   Audio *audio;
 };
 
-Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio) {
+Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *myLedStatusConfig) {
   config = myConfig;
   wifiManager = myWifiManager;
   audio = myAudio;
+  ledStatusConfig = myLedStatusConfig;
 }
 
 bool Radio::connectToStreamHost() {
@@ -262,20 +262,31 @@ void Radio::init() {
   Serial.begin(115200);
 
   initDebugMode();
-  ledStatus.init(debugMode);
+
+  ledStatus.init(ledStatusConfig, debugMode);
 
   getConfigFromPreferences();
 
   if (debugMode) {
     Serial.println("DEBUG MODE ON");
-    ledStatus.setStatus(LED_STATUS_SUCCESS);
+    ledStatus.set_status(LED_STATUS_LEVEL_000_BLUE_INFO);
     delay(100);
-    ledStatus.setStatus(LED_STATUS_INFO);
+    ledStatus.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS);
+    delay(100);
+    ledStatus.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING);
+    delay(100);
+    ledStatus.set_status(LED_STATUS_LEVEL_300_RED_ERROR);
+    delay(100);
     printConfigToSerial();
   }
 
-  ledStatus.setStatus(LED_STATUS_FADE_SUCCESS_TO_INFO);
-  ledStatus.setStatusCode(RADIO_STATUS_001_RADIO_INITIALIZING);
+  ledStatus.set_status(LED_STATUS_LEVEL_300_RED_ERROR);
+  delay(100);
+  ledStatus.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING);
+  delay(100);
+  ledStatus.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS);
+  delay(100);
+  ledStatus.set_status(LED_STATUS_LEVEL_000_BLUE_INFO);
 
   analogReadResolution(config->analogReadResolution);
 
@@ -299,7 +310,7 @@ void Radio::init() {
   }
 
   // WiFi is connected, clear the code, if set.
-  ledStatus.clearStatusCode(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  ledStatus.clear_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
 
   // Initialize Audio
   audio->setPinout(config->pinI2sBclk, config->pinI2sLrc, config->pinI2sDout);
@@ -309,11 +320,12 @@ void Radio::init() {
   bool error = getConfigFromRemote();
   if (error) {
     // Show the error, but move on since the radio should be able to use the config stored in preferences.
-    ledStatus.setStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER, -1, 10000);
-    ledStatus.clearStatusCode(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    ledStatus.set_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    delay(6000);
+    ledStatus.clear_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
   }
 
-  ledStatus.setStatusCode(RADIO_STATUS_000_IDLE);
+  ledStatus.set_status(RADIO_STATUS_NEGATIVE_1_IDLE);
 };
 
 void Radio::initDebugMode() {
@@ -475,7 +487,7 @@ void Radio::handleSerialInput() {
 
       if (doc["debugMode"]) {
         debugMode = true;
-        ledStatus.mDebugMode = true;
+        ledStatus.set_debug(true);
         wifiManager->setDebugOutput(true);
       }
 
@@ -532,10 +544,10 @@ void Radio::loop() {
     /*                                   */
 
     if (WiFi.isConnected()) {
-      ledStatus.clearStatusCode(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      ledStatus.clear_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
     } else {
       if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.setStatusCode(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      ledStatus.set_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
       WiFi.disconnect();
       WiFi.reconnect();
 
@@ -581,7 +593,7 @@ void Radio::loop() {
         audio->stopSong();
       }
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      ledStatus.setStatusCode(RADIO_STATUS_000_IDLE, LED_STATUS_200_WARNING_LEVEL);
+      ledStatus.set_status(RADIO_STATUS_NEGATIVE_1_IDLE, LED_STATUS_LEVEL_300_RED_ERROR);
       return;
     }
 
@@ -598,10 +610,10 @@ void Radio::loop() {
 
       if (audio->inBufferFilled() > 0) {
         // Once there is something in the buffer (ie: when more than just a connection to the host is made) update the status
-        ledStatus.setStatusCode(RADIO_STATUS_101_PLAYING, LED_STATUS_200_WARNING_LEVEL);
+        ledStatus.set_status(RADIO_STATUS_101_PLAYING, LED_STATUS_LEVEL_300_RED_ERROR);
       } else {
         // If the buffer is still at 0, then blink blue.
-        ledStatus.setStatusCode(RADIO_STATUS_051_BUFFERING, LED_STATUS_200_WARNING_LEVEL);
+        ledStatus.set_status(RADIO_STATUS_051_BUFFERING, LED_STATUS_LEVEL_300_RED_ERROR);
       }
       return;
     }
@@ -611,12 +623,12 @@ void Radio::loop() {
 
       // Set the LED status.
       if (status.reconnectingToStream) {
-        ledStatus.setStatusCode(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+        ledStatus.set_status(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
         // Delay a few seconds before reconnecting so as not to overwhelm a server.
         // TODO - make this not blocking
         delay(5000);
       } else {
-        ledStatus.setStatusCode(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_100_SUCCESS_LEVEL);
+        ledStatus.set_status(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_200_YELLOW_WARNING);
       }
 
       connectToStreamHost();
