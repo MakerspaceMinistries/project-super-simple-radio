@@ -3,25 +3,25 @@
 Example serial messages for configuring the radio.
 
 {
-  "remoteConfigURL":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
-  "radioID":"radioID",
-  "pcbVersion":"v1-USMX.beta-1",
-  "remoteConfig":true,
-  "hasChannelPot":true,
-  "stationCount":4
+  "remote_cfg_url":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
+  "radio_id":"radioID",
+  "pcb_version":"v1-USMX.beta-1",
+  "remote_config":true,
+  "has_channel_pot":true,
+  "station_count":4
 }
 
 It appears that it's too large to send all at once, so it is broken into parts.
 
 {
-  "stn1URL":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn2URL":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn3URL":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn4URL":"http://acc-radio.raiotech.com/connect-test.mp3"
+  "stn_1_url":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn_2_url":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn_3_url":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn_4_url":"http://acc-radio.raiotech.com/connect-test.mp3"
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
-{"clearPreferences": true}
+{"clear_preferences": true}
 
 States: 
   - Green               LED_STATUS_SUCCESS              success
