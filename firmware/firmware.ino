@@ -1,6 +1,6 @@
 /*
 
-Example serial messages for configuring the radio.
+Example serial messages for configuring the radio. It is too large to send all at once, so it is broken into parts.
 
 {
   "remote_cfg_url":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
@@ -11,11 +11,16 @@ Example serial messages for configuring the radio.
   "station_count":4
 }
 
-It appears that it's too large to send all at once, so it is broken into parts.
+{ 
+  "remote_config_background_retrieval_interval": 43200000 
+}
 
 {
   "stn_1_url":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn_2_url":"http://acc-radio.raiotech.com/connect-test.mp3",
+  "stn_2_url":"http://acc-radio.raiotech.com/connect-test.mp3"
+}
+
+{
   "stn_3_url":"http://acc-radio.raiotech.com/connect-test.mp3",
   "stn_4_url":"http://acc-radio.raiotech.com/connect-test.mp3"
 }
