@@ -9,12 +9,14 @@
 
 TODO:
 
+  Retrieve the config after 12 hours, if the radio is idle.
+
   Document Programming Flow:
     1. Creating the firmware file.
       1. Use Sketch->Export Compiled Binary to create firmware that uses the settings from Tools. (USB CDC, etc)
       2. Install this on a box and connect the box to a temporary WiFi network, then download the final firmware
     2. Writing the firmware.
-      1. Using an adapter, write the firmware to the board before install in a box with esptool.py. This way it will be prepared to receieve firmware and serial over the USB port
+      1. Using an adapter, write the firmware to the board before install in a box with esptool.py. This way it will be prepared to receive firmware and serial over the USB port
       2. Board is installed in box.
       3. (Optional) firmware is updated
       4. Python script generates an ID, sends it via serial, prints label to place on box. (Radio is added to database???)
@@ -23,26 +25,26 @@ TESTS:
 
   Setup:
     - No WiFi Network
-      - [X] Blink Red
+      - [ ] Blink Red
     - No config server
-      - [X] Blink Yellow and continue
+      - [ ] Blink Yellow and continue
 
   Loop:  
     - WiFi Loss (Restart router)
-      - [X] LED should be red, device should reconnect when WiFi turns back on
+      - [ ] LED should be red, device should reconnect when WiFi turns back on
     - Connection is made before stream has started
-      - [X] LED should be yellow
-      - [X] Radio should connect when stream comes on
+      - [ ] LED should be yellow
+      - [ ] Radio should connect when stream comes on
     - Connection lost after stream started
       - LED should be yellow
-        - [X] When connection becomes a 404
-        - [X] When server cannot be reached (timeout)
+        - [ ] When connection becomes a 404
+        - [ ] When server cannot be reached (timeout)
       - Radio should connect when stream comes on
-        - [X] When connection becomes a 404
-        - [X] When server cannot be reached (timeout)
+        - [ ] When connection becomes a 404
+        - [ ] When server cannot be reached (timeout)
     - Channel Change
-      - [X] Channel should change
-      - [X] LED should turn blue until it does.
+      - [ ] Channel should change
+      - [ ] LED should turn blue until it does.
 
 */
 
@@ -87,7 +89,7 @@ struct RadioConfig {
   int pinI2sLrc = 14;
   bool hasChannelPot = true;
   String pcbVersion = "";
-  int analogReadResolution = 12;  // This ensures the maps used in readChannelIdx and readVolume are correct.
+  int analogReadResolution = 12;  // This ensures the maps used in read_channel_index and read_volume are correct.
 
   // Software
   int volumeMin = 0;
@@ -112,15 +114,13 @@ struct RadioConfig {
 
 struct RadioStatus {
 
-  // This will be replaced by the below
-
   // Inputs
   int channelIdxInput = 0;
   int volumeInput = 0;
   bool playInput = false;
 
   // Outputs
-  int channelIdxOutput = 0;
+  int channel_index_output = 0;
 
   bool reconnectingToStream = false;
 
@@ -130,8 +130,7 @@ struct RadioStatus {
 };
 
 class Radio {
-  unsigned long lastStatusCheck = 0;
-  uint32_t lastCurrentTime = 0;
+  unsigned long m_last_status_check_ = 0;
 
   /*
 
@@ -142,70 +141,70 @@ class Radio {
     The channels at the sides of potentiometer need less room since they locate easily by butting up against the end of the fader.
 
   */
-  int mChannelsLookupTable[4][12] = {
+  int m_channels_lookup_table_[4][12] = {
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
     { 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1 },
     { 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2 },
     { 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3 }
   };
 
-  void handleDebugMode();
-  void handleSerialInput();
+  void handle_debug_mode_();
+  void handle_serial_input_();
 
-  // Debugging. If debugMode is false, these are unused.
-  unsigned long lastDebugStatusUpdate = 0;
-  uint32_t debugLPS = 0;  // Loops per second
+  // Debugging. If m_debug_mode is false, these are unused.
+  unsigned long m_last_debug_status_update_ = 0;
+  uint32_t m_debug_lps_ = 0;  // Loops per second
 
 public:
-  Radio(RadioConfig *config, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *ledStatusConfig);
+  Radio(RadioConfig *config, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *led_status_config);
   void init();
-  void getConfigFromPreferences();
-  void putConfigToPreferences();
-  int readChannelIdx();
-  int readVolume();
-  void initDebugMode();
-  bool getConfigFromRemote();
-  void printConfigToSerial();
-  void setStatusCode();
+  void get_config_from_preferences();
+  void put_config_to_preferences();
+  int read_channel_index();
+  int read_volume();
+  void init_debug_mode();
+  bool get_config_from_remote();
+  void print_config_to_serial();
+  void set_status_code();
   void loop();
-  void debugModeLoop();
-  void setDacSdMode(bool enable);
-  bool connectToStreamHost();
-  bool streamIsRunning();
-  bool debugMode = false;
+  void debug_mode_loop();
+  void set_dac_sd_mode(bool enable);
+  bool connect_to_stream_host();
+  bool stream_is_running();
+  bool m_debug_mode = false;
   Preferences preferences;
-  LEDStatus ledStatus;
-  LEDStatusConfig *ledStatusConfig;
+  LEDStatus m_led_status;
+  LEDStatusConfig *m_led_status_config;
   RadioStatus status;
   RadioConfig *config;
-  WiFiManager *wifiManager;
+  WiFiManager *m_wifi_manager;
   Audio *audio;
 };
 
-Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *myLedStatusConfig) {
+Radio::Radio(RadioConfig *myConfig, WiFiManager *myWifiManager, Audio *myAudio, LEDStatusConfig *led_status_config) {
   config = myConfig;
-  wifiManager = myWifiManager;
+  m_wifi_manager = myWifiManager;
   audio = myAudio;
-  ledStatusConfig = myLedStatusConfig;
+  m_led_status_config = led_status_config;
 }
 
-bool Radio::connectToStreamHost() {
+bool Radio::connect_to_stream_host() {
 
-  setDacSdMode(true);  // Turn DAC on
+  set_dac_sd_mode(true);  // Turn DAC on
 
   String *channels[] = { &config->stn1URL, &config->stn2URL, &config->stn3URL, &config->stn4URL };
-  char selectedChannelURL[2048];
-  channels[status.channelIdxOutput]->toCharArray(selectedChannelURL, 2048);
+  char selected_channel_url[2048];
+  channels[status.channel_index_output]->toCharArray(selected_channel_url, 2048);
 
-  if (debugMode) {
-    Serial.print("selectedChannelURL=");
-    Serial.println(selectedChannelURL);
+  if (m_debug_mode) {
+    Serial.print("selected_channel_url=");
+    Serial.println(selected_channel_url);
   }
 
-  return audio->connecttohost(selectedChannelURL);
+  return audio->connecttohost(selected_channel_url);
 }
 
-void Radio::getConfigFromPreferences() {
+void Radio::get_config_from_preferences() {
   // IMPORTANT the preferences library accepts keys up to 15 characters. Larger keys can be passed and no error will be thrown, but strange things may happen.
   preferences.begin("config", false);
   config->remoteConfigURL = preferences.getString("remoteConfigURL", config->remoteConfigURL);
@@ -221,7 +220,7 @@ void Radio::getConfigFromPreferences() {
   preferences.end();
 }
 
-void Radio::putConfigToPreferences() {
+void Radio::put_config_to_preferences() {
   preferences.begin("config", false);
   preferences.putString("remoteConfigURL", config->remoteConfigURL);
   preferences.putBool("remoteConfig", config->remoteConfig);
@@ -236,19 +235,19 @@ void Radio::putConfigToPreferences() {
   preferences.end();
 }
 
-int Radio::readChannelIdx() {
-  int channelInput = analogRead(config->pinChannelPot);
-  channelInput = map(channelInput, 0, 4095, 0, 11);
-  return mChannelsLookupTable[config->stationCount - 1][channelInput];
+int Radio::read_channel_index() {
+  int channel_input = analogRead(config->pinChannelPot);
+  channel_input = map(channel_input, 0, 4095, 0, 11);
+  return m_channels_lookup_table_[config->stationCount - 1][channel_input];
 }
 
-int Radio::readVolume() {
-  int volumeRaw = analogRead(config->pinVolumePot);
-  int volume = map(volumeRaw, 0, 4095, config->volumeMin, config->volumeMax);
+int Radio::read_volume() {
+  int volume_raw = analogRead(config->pinVolumePot);
+  int volume = map(volume_raw, 0, 4095, config->volumeMin, config->volumeMax);
   return volume;
 }
 
-void Radio::setDacSdMode(bool enable) {
+void Radio::set_dac_sd_mode(bool enable) {
   // Sets the SD mode pin that's connected to the DAC. true turns the DAC on, false turns the dac off.
   if (enable) {
     digitalWrite(config->pinDacSdMode, HIGH);
@@ -261,32 +260,33 @@ void Radio::init() {
 
   Serial.begin(115200);
 
-  initDebugMode();
+  init_debug_mode();
 
-  ledStatus.init(ledStatusConfig, debugMode);
+  m_led_status.init(m_led_status_config, m_debug_mode);
 
-  getConfigFromPreferences();
+  get_config_from_preferences();
 
-  if (debugMode) {
+  if (m_debug_mode) {
     Serial.println("DEBUG MODE ON");
-    ledStatus.set_status(LED_STATUS_LEVEL_000_BLUE_INFO);
-    delay(100);
-    ledStatus.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS);
-    delay(100);
-    ledStatus.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING);
-    delay(100);
-    ledStatus.set_status(LED_STATUS_LEVEL_300_RED_ERROR);
-    delay(100);
-    printConfigToSerial();
+    m_led_status.set_status(LED_STATUS_LEVEL_000_BLUE_INFO, LED_STATUS_MAX_CODE);
+    delay(250);
+    m_led_status.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
+    delay(250);
+    m_led_status.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING, LED_STATUS_MAX_CODE);
+    delay(250);
+    m_led_status.set_status(LED_STATUS_LEVEL_300_RED_ERROR, LED_STATUS_MAX_CODE);
+    delay(250);
+    print_config_to_serial();
   }
 
-  ledStatus.set_status(LED_STATUS_LEVEL_300_RED_ERROR);
-  delay(100);
-  ledStatus.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING);
-  delay(100);
-  ledStatus.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS);
-  delay(100);
-  ledStatus.set_status(LED_STATUS_LEVEL_000_BLUE_INFO);
+  m_led_status.set_status(LED_STATUS_LEVEL_300_RED_ERROR, LED_STATUS_MAX_CODE);
+  delay(250);
+  m_led_status.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING, LED_STATUS_MAX_CODE);
+  delay(250);
+  m_led_status.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
+  delay(250);
+  m_led_status.set_status(LED_STATUS_LEVEL_000_BLUE_INFO, LED_STATUS_MAX_CODE);
+  delay(250);
 
   analogReadResolution(config->analogReadResolution);
 
@@ -297,71 +297,71 @@ void Radio::init() {
 
   // Example for setting a MAC address - useful for networks which require a registration and then filter by MAC address. Use a laptop to log in to the network (adding the laptop's MAC to the whitelist) and then set the radio's MAC address to match the laptop's address.
   // This needs to come after WiFi.mode(WIFI_STA);
-  // uint8_t macAddy[] = { 0x08, 0x71, 0x90, 0x89, 0x85, 0x87 };
-  // esp_wifi_set_mac(WIFI_IF_STA, macAddy);
+  // uint8_t mac_address[] = { 0x08, 0x71, 0x90, 0x89, 0x85, 0x87 };
+  // esp_wifi_set_mac(WIFI_IF_STA, mac_address);
 
-  wifiManager->setDebugOutput(debugMode);
-  wifiManager->setConfigPortalBlocking(false);
-  wifiManager->autoConnect("Radio Setup");
+  m_wifi_manager->setDebugOutput(m_debug_mode);
+  m_wifi_manager->setConfigPortalBlocking(false);
+  m_wifi_manager->autoConnect("Radio Setup");
   while (!WiFi.isConnected()) {
     // While the WiFi manager is active, handle its loop, as well as serial input.
-    wifiManager->process();
-    handleSerialInput();
+    m_wifi_manager->process();
+    handle_serial_input_();
   }
 
   // WiFi is connected, clear the code, if set.
-  ledStatus.clear_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  m_led_status.clear_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
 
   // Initialize Audio
   audio->setPinout(config->pinI2sBclk, config->pinI2sLrc, config->pinI2sDout);
   audio->setVolume(0);
 
   // Get config from remote server
-  bool error = getConfigFromRemote();
+  bool error = get_config_from_remote();
   if (error) {
     // Show the error, but move on since the radio should be able to use the config stored in preferences.
-    ledStatus.set_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    m_led_status.set_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
     delay(6000);
-    ledStatus.clear_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    m_led_status.clear_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
   }
 
-  ledStatus.set_status(RADIO_STATUS_NEGATIVE_1_IDLE);
+  m_led_status.set_status(RADIO_STATUS_NEGATIVE_1_IDLE);
 };
 
-void Radio::initDebugMode() {
+void Radio::init_debug_mode() {
 
   // If debug mode was set to true elsewhere (as part of the setup()), don't check the volume.
-  if (debugMode == true) return;
+  if (m_debug_mode == true) return;
 
   // Detect if debug mode is being requested by having the volume set to full when turned on (or reset) and then turned to 0 within 3 seconds.
-  int volume = readVolume();
+  int volume = read_volume();
   if (volume > config->volumeMax - 2) {
     delay(3000);
-    volume = readVolume();
+    volume = read_volume();
     if (volume < config->volumeMin + 2) {
-      debugMode = true;
+      m_debug_mode = true;
       return;
     };
   }
-  debugMode = false;
+  m_debug_mode = false;
 }
 
-bool Radio::getConfigFromRemote() {
+bool Radio::get_config_from_remote() {
   // returns error: true|false
   if (!config->remoteConfig) {
     return false;
   }
 
-  char hasPot[5];
-  (config->hasChannelPot) ? strcpy(hasPot, "true") : strcpy(hasPot, "false");
+  char has_channel_potentiometer[5];
+  (config->hasChannelPot) ? strcpy(has_channel_potentiometer, "true") : strcpy(has_channel_potentiometer, "false");
   String url = config->remoteConfigURL
                + config->radioID
                + "?pcb_version=" + config->pcbVersion
                + "&firmware_version=" + FIRMWARE_VERSION
                + "&max_station_count=" + (String)config->maxStationCount
-               + "&has_channel_potentiometer=" + hasPot;
+               + "&has_channel_potentiometer=" + has_channel_potentiometer;
 
-  if (debugMode) {
+  if (m_debug_mode) {
     Serial.print(F("Remote config: url="));
     Serial.println(url);
   }
@@ -376,7 +376,7 @@ bool Radio::getConfigFromRemote() {
   DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, http.getStream());
   if (error) {
-    if (debugMode) {
+    if (m_debug_mode) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
     }
@@ -389,9 +389,9 @@ bool Radio::getConfigFromRemote() {
   config->stn3URL = doc["stn3URL"].as<String>();
   config->stn4URL = doc["stn4URL"].as<String>();
   config->stationCount = doc["stationCount"];
-  putConfigToPreferences();
+  put_config_to_preferences();
 
-  if (debugMode) {
+  if (m_debug_mode) {
     Serial.println("Sucessfully retrieved config from remote server.");
   }
 
@@ -403,7 +403,7 @@ bool Radio::getConfigFromRemote() {
   return false;
 }
 
-void Radio::printConfigToSerial() {
+void Radio::print_config_to_serial() {
   Serial.print("FIRMWARE_VERSION=");
   Serial.println(FIRMWARE_VERSION);
   Serial.println("-----------");
@@ -428,25 +428,25 @@ void Radio::printConfigToSerial() {
   Serial.println(config->pcbVersion);
 }
 
-void Radio::debugModeLoop() {
+void Radio::debug_mode_loop() {
   // TODO this needs updated to new status object. Maybe use what's in the status object, instead reading.
-  debugLPS++;
-  if (millis() - lastDebugStatusUpdate > config->debugStatusUpdateIntervalMs) {
-    // Serial.printf("radio.readVolume()=%d\n", readVolume());
-    // Serial.print("radio.readChannelIdx()=");
-    // Serial.println(readChannelIdx());
+  m_debug_lps_++;
+  if (millis() - m_last_debug_status_update_ > config->debugStatusUpdateIntervalMs) {
+    // Serial.printf("radio.read_volume()=%d\n", read_volume());
+    // Serial.print("radio.read_channel_index()=");
+    // Serial.println(read_channel_index());
     // Serial.printf("radio.status.channelIdx=%d\n", status.channelIdxInput);
     // Serial.printf("radio.status.playing=%d\n", status.playing);
 
-    int lps = debugLPS / (config->debugStatusUpdateIntervalMs / 1000);
-    debugLPS = 0;
+    int lps = m_debug_lps_ / (config->debugStatusUpdateIntervalMs / 1000);
+    m_debug_lps_ = 0;
     Serial.printf("lps=%d\n", lps);
 
-    lastDebugStatusUpdate = millis();
+    m_last_debug_status_update_ = millis();
   }
 }
 
-void Radio::handleSerialInput() {
+void Radio::handle_serial_input_() {
   while (Serial.available() > 0) {
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, Serial);
@@ -469,9 +469,9 @@ void Radio::handleSerialInput() {
       config->stationCount = doc["stationCount"] | config->stationCount;
       config->maxStationCount = doc["maxStationCount"] | config->maxStationCount;
 
-      putConfigToPreferences();
+      put_config_to_preferences();
 
-      if (doc["clearPreferences"]) {
+      if (doc["clear_preferences"]) {
         preferences.begin("config", false);
         bool cleared = preferences.clear();
         Serial.println("Clearing preferences, restarting for this to take effect.");
@@ -479,16 +479,16 @@ void Radio::handleSerialInput() {
         ESP.restart();
       }
 
-      if (doc["resetWiFi"]) {
-        wifiManager->resetSettings();
-        Serial.println("Executing wifiManager.resetSettings(), restarting for this to take effect.");
+      if (doc["reset_wifi"]) {
+        m_wifi_manager->resetSettings();
+        Serial.println("Executing m_wifi_manager.resetSettings(), restarting for this to take effect.");
         ESP.restart();
       }
 
-      if (doc["debugMode"]) {
-        debugMode = true;
-        ledStatus.set_debug(true);
-        wifiManager->setDebugOutput(true);
+      if (doc["debug_mode"]) {
+        m_debug_mode = true;
+        m_led_status.set_debug(true);
+        m_wifi_manager->setDebugOutput(true);
       }
 
       if (doc["ssid"]) {
@@ -497,20 +497,20 @@ void Radio::handleSerialInput() {
         WiFi.begin(ssid.c_str(), pass.c_str(), 0, NULL, true);
       }
 
-      if (doc["restartESP"]) {
+      if (doc["restart_esp"]) {
         ESP.restart();
       }
 
-      printConfigToSerial();
+      print_config_to_serial();
     }
   }
 }
 
-bool Radio::streamIsRunning() {
+bool Radio::stream_is_running() {
 
   /*
 
-  isRunning() returns audio->m_f_running
+  stream_is_running() returns audio->m_f_running
 
   audio->isRunning() will reflect any timeouts or 404s:
 
@@ -531,23 +531,23 @@ void Radio::loop() {
 
   audio->loop();
 
-  handleSerialInput();
+  handle_serial_input_();
 
-  if (debugMode) {
-    debugModeLoop();
+  if (m_debug_mode) {
+    debug_mode_loop();
   }
 
-  if (millis() > lastStatusCheck + config->statusCheckIntervalMs) {
+  if (millis() > m_last_status_check_ + config->statusCheckIntervalMs) {
 
     /*                                   */
     /* Handle the WiFi connection status */
     /*                                   */
 
     if (WiFi.isConnected()) {
-      ledStatus.clear_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      m_led_status.clear_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
     } else {
-      if (debugMode) Serial.println("Reconnecting to WiFi...");
-      ledStatus.set_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      if (m_debug_mode) Serial.println("Reconnecting to WiFi...");
+      m_led_status.set_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
       WiFi.disconnect();
       WiFi.reconnect();
 
@@ -561,20 +561,20 @@ void Radio::loop() {
     /* Read inputs, set computed status properties. */
     /*                                              */
 
-    status.volumeInput = readVolume();
+    status.volumeInput = read_volume();
     status.playInput = (status.volumeInput > 0);
-    status.channelIdxInput = readChannelIdx();
+    status.channelIdxInput = read_channel_index();
 
     // Check for changes in the channel selected.  If the channel has changed, it is not connected and the new connection is not a reconnection.
-    if (status.channelIdxInput != status.channelIdxOutput) {
-      status.channelIdxOutput = status.channelIdxInput;
+    if (status.channelIdxInput != status.channel_index_output) {
+      status.channel_index_output = status.channelIdxInput;
       status.reconnectingToStream = false;
       status.streamConnectEstablished = false;
       audio->stopSong();
     }
 
     // If play is requested and the stream had previously been connected, then the stream is reconnecting.
-    if (status.playInput && status.streamConnectEstablished && !streamIsRunning()) {
+    if (status.playInput && status.streamConnectEstablished && !stream_is_running()) {
       status.streamConnectEstablished = false;
       status.reconnectingToStream = true;
     }
@@ -585,15 +585,15 @@ void Radio::loop() {
 
     if (!status.playInput) {
       // If the play input is false, but it was playing or reconnecting last cycle => disconnect.
-      if (status.streamConnectEstablished || streamIsRunning() || status.reconnectingToStream) {
+      if (status.streamConnectEstablished || stream_is_running() || status.reconnectingToStream) {
         // stop play, set status
         status.streamConnectEstablished = false;
         status.reconnectingToStream = false;
-        setDacSdMode(false);  // Turn DAC off
+        set_dac_sd_mode(false);  // Turn DAC off
         audio->stopSong();
       }
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      ledStatus.set_status(RADIO_STATUS_NEGATIVE_1_IDLE, LED_STATUS_LEVEL_300_RED_ERROR);
+      m_led_status.set_status(RADIO_STATUS_NEGATIVE_1_IDLE, LED_STATUS_LEVEL_300_RED_ERROR);
       return;
     }
 
@@ -604,34 +604,34 @@ void Radio::loop() {
     audio->setVolume(status.volumeInput);
 
     // Play is requested, There is a connection to the host, and the stream is running. Make sure warnings are cleared and the success status is set.
-    if (status.playInput == true && streamIsRunning()) {
+    if (status.playInput == true && stream_is_running()) {
       status.reconnectingToStream = false;
       status.streamConnectEstablished = true;
 
       if (audio->inBufferFilled() > 0) {
         // Once there is something in the buffer (ie: when more than just a connection to the host is made) update the status
-        ledStatus.set_status(RADIO_STATUS_101_PLAYING, LED_STATUS_LEVEL_300_RED_ERROR);
+        m_led_status.set_status(RADIO_STATUS_101_PLAYING, LED_STATUS_LEVEL_300_RED_ERROR);
       } else {
         // If the buffer is still at 0, then blink blue.
-        ledStatus.set_status(RADIO_STATUS_051_BUFFERING, LED_STATUS_LEVEL_300_RED_ERROR);
+        m_led_status.set_status(RADIO_STATUS_051_BUFFERING, LED_STATUS_LEVEL_300_RED_ERROR);
       }
       return;
     }
 
     // The input says to play, but there is no connection to the stream host.
-    if (status.playInput == true && !streamIsRunning()) {
+    if (status.playInput == true && !stream_is_running()) {
 
       // Set the LED status.
       if (status.reconnectingToStream) {
-        ledStatus.set_status(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+        m_led_status.set_status(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
         // Delay a few seconds before reconnecting so as not to overwhelm a server.
         // TODO - make this not blocking
         delay(5000);
       } else {
-        ledStatus.set_status(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_200_YELLOW_WARNING);
+        m_led_status.set_status(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_200_YELLOW_WARNING);
       }
 
-      connectToStreamHost();
+      connect_to_stream_host();
     }
   }
 }
