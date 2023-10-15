@@ -81,7 +81,7 @@ void audio_info(const char *info) {
 }
 
 void wifi_manager_setup_callback(WiFiManager *myWiFiManager) {
-  radio.m_led_status.set_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  radio.m_led_status.set_status(RADIO_STATUS_450_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
   if (radio.m_debug_mode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());
