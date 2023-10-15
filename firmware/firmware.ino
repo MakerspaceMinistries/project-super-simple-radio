@@ -64,25 +64,25 @@ ArduinoJSON (6.21.2)
 #include "Audio.h"
 #include "Radio.h"
 
-WiFiManager wifiManager;
+RadioConfig radio_config;
+WiFiManager wifi_manager;
 Audio audio;
-RadioConfig radioConfig;
-LEDStatusConfig ledStatusConfig;
+LEDStatusConfig led_status_config;
 
-Radio radio(&radioConfig, &wifiManager, &audio, &ledStatusConfig);
+Radio radio(&radio_config, &wifi_manager, &audio, &led_status_config);
 
 // Callbacks which need the radio instance
 void audio_info(const char *info) {
   // Triggered once a feed is played.
-  if (radio.debugMode) {
+  if (radio.m_debug_mode) {
     Serial.print("info:");
     Serial.println(info);
   }
 }
 
-void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
-  radio.ledStatus.set_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
-  if (radio.debugMode) {
+void wifi_manager_setup_callback(WiFiManager *myWiFiManager) {
+  radio.m_led_status.set_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  if (radio.m_debug_mode) {
     Serial.println("Entered config mode");
     Serial.println(WiFi.softAPIP());
     Serial.print("Created config portal AP ");
@@ -92,9 +92,9 @@ void wifiManagerSetupCallback(WiFiManager *myWiFiManager) {
 
 void setup() {
 
-  // radio.debugMode = true;
+  // radio.m_debug_mode = true;
 
-  wifiManager.setAPCallback(wifiManagerSetupCallback);
+  wifi_manager.setAPCallback(wifi_manager_setup_callback);
   radio.init();
 }
 
