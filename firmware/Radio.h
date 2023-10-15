@@ -9,8 +9,6 @@
 
 TODO:
 
-  Retrieve the config after 12 hours, if the radio is idle.
-
   Document Programming Flow:
     1. Creating the firmware file.
       1. Use Sketch->Export Compiled Binary to create firmware that uses the settings from Tools. (USB CDC, etc)
@@ -78,6 +76,7 @@ MANUAL TESTS:
 
 // Loop
 #define RADIO_STATUS_001_IDLE 1
+#define RADIO_STATUS_002_BACKGROUND_CONFIG_RETRIEVAL 2
 
 
 WiFiClient client;
@@ -114,10 +113,12 @@ struct RadioConfig {
   bool remote_config = false;
   String remote_cfg_url = "";
   String radio_id = "";
+  int remote_config_background_retrieval_interval = 0;
 };
 
 class Radio {
   unsigned long m_last_status_check_ = 0;
+  unsigned long m_last_remote_config_retrieved_ = 0;
 
   /*
 
@@ -211,6 +212,7 @@ void Radio::get_config_from_preferences() {
   preferences.begin("config", false);
   m_radio_config->remote_cfg_url = preferences.getString("remote_cfg_url", m_radio_config->remote_cfg_url);
   m_radio_config->remote_config = preferences.getBool("remote_config", m_radio_config->remote_config);
+  m_radio_config->remote_config_background_retrieval_interval = preferences.getInt("ret_rem_cfg_int", m_radio_config->remote_config_background_retrieval_interval);
   m_radio_config->radio_id = preferences.getString("radio_id", m_radio_config->radio_id);
   m_radio_config->has_channel_pot = preferences.getBool("has_channel_pot", m_radio_config->has_channel_pot);
   m_radio_config->pcb_version = preferences.getString("pcb_version", m_radio_config->pcb_version);
@@ -226,6 +228,7 @@ void Radio::put_config_to_preferences() {
   preferences.begin("config", false);
   preferences.putString("remote_cfg_url", m_radio_config->remote_cfg_url);
   preferences.putBool("remote_config", m_radio_config->remote_config);
+  preferences.putInt("ret_rem_cfg_int", m_radio_config->remote_config_background_retrieval_interval);
   preferences.putString("radio_id", m_radio_config->radio_id);
   preferences.putBool("has_channel_pot", m_radio_config->has_channel_pot);
   preferences.putString("pcb_version", m_radio_config->pcb_version);
@@ -239,6 +242,10 @@ void Radio::put_config_to_preferences() {
 
 bool Radio::get_config_from_remote() {
   // returns error: true|false
+
+  // To preventing flooding, this is set regardless of the success
+  m_last_remote_config_retrieved_ = millis();
+
   if (!m_radio_config->remote_config) {
     return false;
   }
@@ -280,6 +287,7 @@ bool Radio::get_config_from_remote() {
   m_radio_config->stn_3_url = doc["stn3URL"].as<String>();
   m_radio_config->stn_4_url = doc["stn4URL"].as<String>();
   m_radio_config->station_count = doc["stationCount"];
+  m_radio_config->remote_config_background_retrieval_interval = doc["remote_config_background_retrieval_interval"] | m_radio_config->remote_config_background_retrieval_interval;
   put_config_to_preferences();
 
   if (m_debug_mode) {
@@ -428,6 +436,8 @@ void Radio::print_config_to_serial() {
   Serial.printf("max_station_count=%d\n", m_radio_config->max_station_count);
   Serial.print("pcb_version=");
   Serial.println(m_radio_config->pcb_version);
+  Serial.print("remote_config_background_retrieval_interval=");
+  Serial.println(m_radio_config->remote_config_background_retrieval_interval);
 }
 
 void Radio::debug_mode_loop() {
@@ -452,6 +462,7 @@ void Radio::handle_serial_input_() {
 
       m_radio_config->remote_cfg_url = doc["remote_cfg_url"] | m_radio_config->remote_cfg_url;
       m_radio_config->remote_config = doc["remote_config"] | m_radio_config->remote_config;
+      m_radio_config->remote_config_background_retrieval_interval = doc["remote_config_background_retrieval_interval"] | m_radio_config->remote_config_background_retrieval_interval;
       m_radio_config->radio_id = doc["radio_id"] | m_radio_config->radio_id;
 
       // should the stuff after | be there? if it works, then leave it alone
@@ -589,6 +600,13 @@ void Radio::loop() {
       }
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
       m_led_status.set_status(RADIO_STATUS_001_IDLE, LED_STATUS_LEVEL_400_RED_ERROR);
+
+      // Check the last time the configuration was downloaded, and download.
+      if (m_radio_config->remote_config && m_radio_config->remote_config_background_retrieval_interval > 0 && millis() - m_last_remote_config_retrieved_ > m_radio_config->remote_config_background_retrieval_interval) {
+        m_led_status.set_status(RADIO_STATUS_002_BACKGROUND_CONFIG_RETRIEVAL);
+        get_config_from_remote();
+      }
+
       return;
     }
 
