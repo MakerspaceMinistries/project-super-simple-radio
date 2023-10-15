@@ -50,30 +50,35 @@ MANUAL TESTS:
 
 /* ERRORS */
 // Setup
-#define RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 350
+#define RADIO_STATUS_450_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE 450
 // Loop
-#define RADIO_STATUS_300_WIFI_CONNECTION_LOST 300
+#define RADIO_STATUS_400_WIFI_CONNECTION_LOST 400
 
 /* WARNINGS */
 // Setup
-#define RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER 250
+#define RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_CONFIG_SERVER 350
 // Loop
-#define RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING 251
-#define RADIO_STATUS_252_UNABLE_TO_CONNECT_WAITING_AND_TRYING_AGAIN 252
+#define RADIO_STATUS_351_STREAM_CONNECTION_LOST_RECONNECTING 351
+#define RADIO_STATUS_352_UNABLE_TO_CONNECT_WAITING_AND_TRYING_AGAIN 352
 
 /* SUCCESS */
 // Loop
-#define RADIO_STATUS_101_PLAYING 101
+#define RADIO_STATUS_201_PLAYING 201
 
 /* INFO */
 // Setup
-#define RADIO_STATUS_001_RADIO_INITIALIZING 1
+#define RADIO_STATUS_101_RADIO_INITIALIZING 101
 // Loop
-#define RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION 2
-#define RADIO_STATUS_051_BUFFERING 51
+#define RADIO_STATUS_102_INITIAL_STREAMING_CONNECTION 102
+#define RADIO_STATUS_151_BUFFERING 151
 
-// Special Idle Status, which turns LEDs off
-#define RADIO_STATUS_NEGATIVE_1_IDLE -100
+/* LEDs OFF */
+// Setup
+#define RADIO_STATUS_000_BOOT_COMPLETE 0
+
+// Loop
+#define RADIO_STATUS_001_IDLE 1
+
 
 WiFiClient client;
 HTTPClient http;
@@ -322,24 +327,24 @@ void Radio::init() {
 
   if (m_debug_mode) {
     Serial.println("DEBUG MODE ON");
-    m_led_status.set_status(LED_STATUS_LEVEL_000_BLUE_INFO, LED_STATUS_MAX_CODE);
+    m_led_status.set_status(LED_STATUS_LEVEL_100_BLUE_INFO, LED_STATUS_MAX_CODE);
     delay(250);
-    m_led_status.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
+    m_led_status.set_status(LED_STATUS_LEVEL_200_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
     delay(250);
-    m_led_status.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING, LED_STATUS_MAX_CODE);
+    m_led_status.set_status(LED_STATUS_LEVEL_300_YELLOW_WARNING, LED_STATUS_MAX_CODE);
     delay(250);
-    m_led_status.set_status(LED_STATUS_LEVEL_300_RED_ERROR, LED_STATUS_MAX_CODE);
+    m_led_status.set_status(LED_STATUS_LEVEL_400_RED_ERROR, LED_STATUS_MAX_CODE);
     delay(250);
     print_config_to_serial();
   }
 
-  m_led_status.set_status(LED_STATUS_LEVEL_300_RED_ERROR, LED_STATUS_MAX_CODE);
+  m_led_status.set_status(LED_STATUS_LEVEL_400_RED_ERROR, LED_STATUS_MAX_CODE);
   delay(250);
-  m_led_status.set_status(LED_STATUS_LEVEL_200_YELLOW_WARNING, LED_STATUS_MAX_CODE);
+  m_led_status.set_status(LED_STATUS_LEVEL_300_YELLOW_WARNING, LED_STATUS_MAX_CODE);
   delay(250);
-  m_led_status.set_status(LED_STATUS_LEVEL_100_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
+  m_led_status.set_status(LED_STATUS_LEVEL_200_GREEN_SUCCESS, LED_STATUS_MAX_CODE);
   delay(250);
-  m_led_status.set_status(LED_STATUS_LEVEL_000_BLUE_INFO, LED_STATUS_MAX_CODE);
+  m_led_status.set_status(LED_STATUS_LEVEL_100_BLUE_INFO, LED_STATUS_MAX_CODE);
   delay(250);
 
   analogReadResolution(m_radio_config->analog_read_resolution);
@@ -364,7 +369,7 @@ void Radio::init() {
   }
 
   // WiFi is connected, clear the code, if set.
-  m_led_status.clear_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
+  m_led_status.clear_status(RADIO_STATUS_450_UNABLE_TO_CONNECT_TO_WIFI_WM_ACTIVE);
 
   // Initialize Audio
   audio->setPinout(m_radio_config->pin_i2s_bclk, m_radio_config->pin_i2s_lrc, m_radio_config->pin_i2s_dout);
@@ -374,12 +379,12 @@ void Radio::init() {
   bool error = get_config_from_remote();
   if (error) {
     // Show the error, but move on since the radio should be able to use the config stored in preferences.
-    m_led_status.set_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    m_led_status.set_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
     delay(6000);
-    m_led_status.clear_status(RADIO_STATUS_250_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
+    m_led_status.clear_status(RADIO_STATUS_350_UNABLE_TO_CONNECT_TO_CONFIG_SERVER);
   }
 
-  m_led_status.set_status(RADIO_STATUS_NEGATIVE_1_IDLE);
+  m_led_status.set_status(RADIO_STATUS_000_BOOT_COMPLETE);
 };
 
 void Radio::init_debug_mode() {
@@ -534,10 +539,10 @@ void Radio::loop() {
     /*                                   */
 
     if (WiFi.isConnected()) {
-      m_led_status.clear_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      m_led_status.clear_status(RADIO_STATUS_400_WIFI_CONNECTION_LOST);
     } else {
       if (m_debug_mode) Serial.println("Reconnecting to WiFi...");
-      m_led_status.set_status(RADIO_STATUS_300_WIFI_CONNECTION_LOST);
+      m_led_status.set_status(RADIO_STATUS_400_WIFI_CONNECTION_LOST);
       WiFi.disconnect();
       WiFi.reconnect();
 
@@ -583,7 +588,7 @@ void Radio::loop() {
         audio->stopSong();
       }
       // Clear warning level and up, since it doesn't matter if a connection cannot be made. This will still allow WiFi connection errors to be displayed.
-      m_led_status.set_status(RADIO_STATUS_NEGATIVE_1_IDLE, LED_STATUS_LEVEL_300_RED_ERROR);
+      m_led_status.set_status(RADIO_STATUS_001_IDLE, LED_STATUS_LEVEL_400_RED_ERROR);
       return;
     }
 
@@ -600,10 +605,10 @@ void Radio::loop() {
 
       if (audio->inBufferFilled() > 0) {
         // Once there is something in the buffer (ie: when more than just a connection to the host is made) update the status
-        m_led_status.set_status(RADIO_STATUS_101_PLAYING, LED_STATUS_LEVEL_300_RED_ERROR);
+        m_led_status.set_status(RADIO_STATUS_201_PLAYING, LED_STATUS_LEVEL_400_RED_ERROR);
       } else {
         // If the buffer is still at 0, then blink blue.
-        m_led_status.set_status(RADIO_STATUS_051_BUFFERING, LED_STATUS_LEVEL_300_RED_ERROR);
+        m_led_status.set_status(RADIO_STATUS_151_BUFFERING, LED_STATUS_LEVEL_400_RED_ERROR);
       }
       return;
     }
@@ -613,12 +618,12 @@ void Radio::loop() {
 
       // Set the LED status.
       if (m_reconnecting_to_stream) {
-        m_led_status.set_status(RADIO_STATUS_251_STREAM_CONNECTION_LOST_RECONNECTING);
+        m_led_status.set_status(RADIO_STATUS_351_STREAM_CONNECTION_LOST_RECONNECTING);
         // Delay a few seconds before reconnecting so as not to overwhelm a server.
         // TODO - make this not blocking
         delay(5000);
       } else {
-        m_led_status.set_status(RADIO_STATUS_002_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_200_YELLOW_WARNING);
+        m_led_status.set_status(RADIO_STATUS_102_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_300_YELLOW_WARNING);
       }
 
       connect_to_stream_host();

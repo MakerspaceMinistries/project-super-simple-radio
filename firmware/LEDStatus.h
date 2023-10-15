@@ -2,15 +2,16 @@
 
 See the public methods for documentation on how each works
 
--100     Unset (Idle)
-    0- 49 Info
-  50- 99 Info (Blinking)
-  100-149 Success
-  150-199 Success (Blinking)
-  200-249 Warning
-  250-299 Warning (Blinking)
-  300-349 Error
-  350-399 Error (Blinking)
+   -1     Unset
+    0-99  Off 
+  100-149 Info
+  150-199 Info (Blinking)
+  200-249 Success
+  250-299 Success (Blinking)
+  300-349 Warning
+  350-399 Warning (Blinking)
+  400-449 Error
+  450-499 Error (Blinking)
 
 Docs on hardware timers
 https://espressif-docs.readthedocs-hosted.com/projects/arduino-esp32/en/latest/api/timer.html
@@ -21,13 +22,13 @@ https://espressif-docs.readthedocs-hosted.com/projects/arduino-esp32/en/latest/a
 #include "esp_system.h"
 
 #define LED_STATUS_BLINKING_THRESHOLD 49
-#define LED_STATUS_UNSET -999
-#define LED_STATUS_IDLE_STATUS_CODE -100
-#define LED_STATUS_LEVEL_000_BLUE_INFO 0
-#define LED_STATUS_LEVEL_100_GREEN_SUCCESS 100
-#define LED_STATUS_LEVEL_200_YELLOW_WARNING 200
-#define LED_STATUS_LEVEL_300_RED_ERROR 300
-#define LED_STATUS_MAX_CODE 400
+#define LED_STATUS_UNSET -1
+#define LED_STATUS_LEVEL_000_OFF 0
+#define LED_STATUS_LEVEL_100_BLUE_INFO 100
+#define LED_STATUS_LEVEL_200_GREEN_SUCCESS 200
+#define LED_STATUS_LEVEL_300_YELLOW_WARNING 300
+#define LED_STATUS_LEVEL_400_RED_ERROR 400
+#define LED_STATUS_MAX_CODE 500
 
 int g_led_status_rgb_pins[3] = { 0, 0, 0 };
 bool g_led_status_rgb_is_active[3] = { false, false, false };
@@ -62,8 +63,8 @@ public:
 
 private:
   LEDStatusConfig *m_config_;
-  int m_status_ = LED_STATUS_IDLE_STATUS_CODE;
-  int m_major_status_ = -100;
+  int m_status_ = LED_STATUS_LEVEL_000_OFF;
+  int m_major_status_ = 0;
   int m_minor_status_ = 0;
   bool m_debug_ = false;
   hw_timer_t *m_hardware_timer_ = NULL;
@@ -148,7 +149,7 @@ void LEDStatus::set_status(int status, int force_to_status) {
 void LEDStatus::clear_status(int status) {
   if (m_status_ == status) {
     debug_output("Clearing status: ", status);
-    set_status(LED_STATUS_IDLE_STATUS_CODE, status);
+    set_status(LED_STATUS_LEVEL_000_OFF, status);
   } else {
     // This needs to be optional or removed as it may be used often "just in case" and will result in flooding the debug output
     // debug_output("Attempting to clear status that is not active: ", status);
@@ -161,8 +162,8 @@ void LEDStatus::clear_status(int status) {
  * Resets the status code to the unset (idle) state regardless of the current status.
  */
 void LEDStatus::clear_all_statuses() {
-  debug_output("Resetting status to: ", LED_STATUS_IDLE_STATUS_CODE);
-  set_status(LED_STATUS_IDLE_STATUS_CODE, LED_STATUS_MAX_CODE);
+  debug_output("Resetting status to: ", LED_STATUS_LEVEL_000_OFF);
+  set_status(LED_STATUS_LEVEL_000_OFF, LED_STATUS_MAX_CODE);
 }
 
 /**
@@ -207,27 +208,27 @@ void LEDStatus::status_to_rgb_() {
   bool rgb[3] = { false, false, false };
 
   switch (m_major_status_) {
-    case LED_STATUS_IDLE_STATUS_CODE:
+    case LED_STATUS_LEVEL_000_OFF:
       // Do nothing, leaving rgb at it's default value of all LEDs being off.
       break;
-    case LED_STATUS_LEVEL_000_BLUE_INFO:
+    case LED_STATUS_LEVEL_100_BLUE_INFO:
       rgb[2] = true;
       break;
-    case LED_STATUS_LEVEL_100_GREEN_SUCCESS:
+    case LED_STATUS_LEVEL_200_GREEN_SUCCESS:
       rgb[1] = true;
       break;
-    case LED_STATUS_LEVEL_200_YELLOW_WARNING:
+    case LED_STATUS_LEVEL_300_YELLOW_WARNING:
       rgb[0] = true;
       rgb[1] = true;
       break;
-    case LED_STATUS_LEVEL_300_RED_ERROR:
+    case LED_STATUS_LEVEL_400_RED_ERROR:
       rgb[0] = true;
       break;
   }
 
   write_rgb_(rgb);
 
-  if (is_blinking_status_()) {
+  if (is_blinking_status_() && m_major_status_  >= LED_STATUS_LEVEL_100_BLUE_INFO) {
     hardware_timer_enable_();
   }
 }
