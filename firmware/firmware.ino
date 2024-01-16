@@ -4,7 +4,7 @@ Example serial messages for configuring the radio. It is too large to send all a
 
 {
   "remote_cfg_url":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
-  "radio_id":"radioID",
+  "radio_id":"test-radio",
   "pcb_version":"v1-USMX.beta-1",
   "remote_config":true,
   "has_channel_pot":true,
