@@ -53,7 +53,7 @@ class RadiosEndpoint(Resource):
 
             lastrowid = connection.lastrowid()
 
-            data = (lastrowid,)
+            data = (args["radio_id"],)
             connection.execute("SELECT * FROM Radios WHERE radio_id = %s", data)
             radio = connection.fetch(first=True)
         return radio
