@@ -7,18 +7,6 @@
 
 /*
 
-TODO:
-
-  Document Programming Flow:
-    1. Creating the firmware file.
-      1. Use Sketch->Export Compiled Binary to create firmware that uses the settings from Tools. (USB CDC, etc)
-      2. Install this on a box and connect the box to a temporary WiFi network, then download the final firmware
-    2. Writing the firmware.
-      1. Using an adapter, write the firmware to the board before install in a box with esptool.py. This way it will be prepared to receive firmware and serial over the USB port
-      2. Board is installed in box.
-      3. (Optional) firmware is updated
-      4. Python script generates an ID, sends it via serial, prints label to place on box. (Radio is added to database???)
-
 MANUAL TESTS:
 
   Setup:

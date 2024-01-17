@@ -1,0 +1,2 @@
+#!/bin/bash
+esptool.py --chip esp32s3 --port $2 --baud 921600  --before default_reset --after hard_reset write_flash  -z --flash_mode dio --flash_freq 80m --flash_size 4MB 0x0 ./$1/firmware.ino.bootloader.bin 0x8000 ./$1/firmware.ino.partitions.bin 0xe000 esp32s3-2.0.14.boot_app0.bin 0x10000 ./$1/firmware.ino.bin
