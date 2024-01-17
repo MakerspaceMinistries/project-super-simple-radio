@@ -126,6 +126,8 @@ def load_settings_file(args):
 
 if __name__ == '__main__':
 
+    # TODO add ability to generate QR codes
+    
     # TODO Do this here, pass it as arg
     # radio_id, qr_data = detect_and_decode_qr()
 
