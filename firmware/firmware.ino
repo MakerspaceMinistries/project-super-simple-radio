@@ -3,7 +3,7 @@
 Example serial messages for configuring the radio. It is too large to send all at once, so it is broken into parts.
 
 {
-  "remote_cfg_url":"http://config.acc-radio.raiotech.com/api/v1/radios/device_interface/v1.0/",
+  "remote_cfg_url":"http://config.example.com/api/v1/radios/device_interface/v1.0/",
   "radio_id":"test-radio",
   "pcb_version":"v1-USMX.beta-1",
   "remote_config":true,
@@ -16,13 +16,13 @@ Example serial messages for configuring the radio. It is too large to send all a
 }
 
 {
-  "stn_1_url":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn_2_url":"http://acc-radio.raiotech.com/connect-test.mp3"
+  "stn_1_url":"http://example.com/connect-test.mp3",
+  "stn_2_url":"http://example.com/connect-test.mp3"
 }
 
 {
-  "stn_3_url":"http://acc-radio.raiotech.com/connect-test.mp3",
-  "stn_4_url":"http://acc-radio.raiotech.com/connect-test.mp3"
+  "stn_3_url":"http://example.com/connect-test.mp3",
+  "stn_4_url":"http://example.com/connect-test.mp3"
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
