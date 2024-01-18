@@ -2,6 +2,12 @@
 
 This needs refactored and a class object should probably be used.
 
+
+Examples:
+
+Auto detect the serial port and write firmware.
+python .\serial_programmer.py write_firmware -d --firmware-version v1.0.0-beta.2
+
 '''
 
 import serial
@@ -11,6 +17,7 @@ import requests
 from time import sleep
 from qr_code_webcam import detect_and_decode_qr
 import esptool
+from libs.detect_serial_ports import serial_ports
 
 parser = argparse.ArgumentParser(description='Command line radio configuration.')
 
@@ -19,6 +26,7 @@ parser.add_argument('action', help='Action to be performed.', choices=['create',
 parser.add_argument('-a', '--api-version',  default='v1', type=str, help='Version of the api to use. Default: v1') 
 parser.add_argument('-b', '--pcb-version', type=str, help='PCB version.')
 parser.add_argument('-c', '--config-endpoint-version', type=str, default='v1.0', help='v1.0')
+parser.add_argument('-d', '--auto-detect-serial-port', action='store_true', default=False, help='Attempt to detect a serial port and write to it. UNPLUG OTHER SERIAL DEVICES.')
 parser.add_argument('-e', '--has-channel-pot', default=True, type=bool, help='has_channel_pot')
 parser.add_argument('-f', '--file', help='Path to the settings file')
 parser.add_argument('-H', '--host', type=str, help='Host of the radio configuration server.') 
@@ -148,12 +156,16 @@ if __name__ == '__main__':
         update_radio(args)
 
     elif args.action == 'write_firmware':
+        if args.auto_detect_serial_port:
+            port = serial_ports()[0]
+        else:
+            port = args.target
         print('If writing over UART, be sure to press the boot to program button', flush=True)
-        esptool.main(['--chip', 'esp32s3', '--port', args.target, '--baud', '921600',  '--before', 
+        esptool.main(['--chip', 'esp32s3', '--port', port, '--baud', '921600',  '--before', 
                       'default_reset', '--after', 'hard_reset', 'write_flash',  '-z', 
                       '--flash_mode', 'dio', '--flash_freq', '80m', '--flash_size', '4MB', 
                       '0x0', f'./{args.firmware_version}/firmware.ino.bootloader.bin', '0x8000', 
                       f'./{args.firmware_version}/firmware.ino.partitions.bin', '0xe000', 
-                      './esp32s3-2.0.14.boot_app0.bin', '0x10000', 
+                      './libs/esp32s3-2.0.14.boot_app0.bin', '0x10000', 
                       f'./{args.firmware_version}/firmware.ino.bin'])
 
