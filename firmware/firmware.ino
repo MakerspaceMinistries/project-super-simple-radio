@@ -26,7 +26,11 @@ Example serial messages for configuring the radio. It is too large to send all a
 }
 
 Example message for resetting the stored preferences and restarting the ESP.
+
 {"clear_preferences": true}
+{"restart_esp": true}
+
+TODO document: reset_wifi, debug_mode, ssid, pass
 
 States: 
   - Green               LED_STATUS_SUCCESS              success
