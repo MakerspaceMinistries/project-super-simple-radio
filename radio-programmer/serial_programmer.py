@@ -134,17 +134,20 @@ def load_settings_file(args):
 
 if __name__ == '__main__':
 
-    # TODO add ability to generate QR codes
-    
-    # TODO Do this here, pass it as arg
-    # radio_id, qr_data = detect_and_decode_qr()
+    # TODO add action to generate QR codes
+
+    if args.auto_detect_serial_port:
+        port = serial_ports()[0]
+    else:
+        port = args.target
 
     if args.file:
         load_settings_file(args)
 
     if args.action in ['create', 'update']:
          # This will print out the config. It should also verify the config.
-        read_config(args.target)
+        read_config(port)
+        radio_id, qr_data = detect_and_decode_qr()
 
     if args.action == 'create':
         radio_id = create_radio(args)
@@ -156,10 +159,6 @@ if __name__ == '__main__':
         update_radio(args)
 
     elif args.action == 'write_firmware':
-        if args.auto_detect_serial_port:
-            port = serial_ports()[0]
-        else:
-            port = args.target
         print('If writing over UART, be sure to press the boot to program button', flush=True)
         esptool.main(['--chip', 'esp32s3', '--port', port, '--baud', '921600',  '--before', 
                       'default_reset', '--after', 'hard_reset', 'write_flash',  '-z', 
