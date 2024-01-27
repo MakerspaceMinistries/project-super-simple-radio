@@ -7,3 +7,12 @@ api:
   servicePort: 80
   ingressPort: 80
   host: config.acc-radio.raiotech.com
+
+# <add to a secrets.yaml file>
+# api:
+#   FLASK_SECRET_KEY: <insert your value>
+#   WEBSITE_DB_HOST: <insert your value>
+#   WEBSITE_DB_USER: <insert your value>
+#   WEBSITE_DB_PASS: <insert your value>
+#   WEBSITE_DB_DATABASE: <insert your value>
+#   PASSWORD_SALT: <insert your value>
