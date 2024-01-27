@@ -83,7 +83,7 @@
       (mirror false)
       (drillshape 0)
       (scaleselection 1)
-      (outputdirectory "../v1-USMX.beta-1-fabrication/drill-files/")
+      (outputdirectory "../v1.0-USMX-fabrication/")
     )
   )
 
