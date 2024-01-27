@@ -255,9 +255,16 @@ bool Radio::get_config_from_remote() {
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
   http.useHTTP10(true);
   http.begin(client, url);
-  http.GET();
+  int code = http.GET();
 
-  Serial.begin(115200);
+  if (m_debug_mode) {
+    Serial.print(F("Config HTTP Request Response Code: "));
+    Serial.println(code);
+  }
+
+  if (code > 399) {
+    return true;
+  }
 
   DynamicJsonDocument doc(2048);
   DeserializationError error = deserializeJson(doc, http.getStream());
