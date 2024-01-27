@@ -30,3 +30,5 @@ station-configuration-api/app/__pycache__/
 station-configuration-helm-chart/secrets.yaml
 
 *.FCBak
+
+station-configuration-client/.vscode/
