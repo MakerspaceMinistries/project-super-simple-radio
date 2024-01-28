@@ -71,6 +71,9 @@ class RadioEndpoint(Resource):
             connection.execute(query, data)
             result = connection.fetch(first=True)
 
+            if result is None:
+                return "Radio Not Found", 404
+
             # Get Stations
             data = (radio_id,)
             query = "SELECT Stations.station_id, network_id, station_url, station_name, position FROM RadiosStations JOIN Stations ON RadiosStations.station_id = Stations.station_id WHERE radio_id = %s ORDER BY position ASC;"
