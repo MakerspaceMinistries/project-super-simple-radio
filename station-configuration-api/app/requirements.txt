@@ -2,6 +2,7 @@ gunicorn
 flask
 flask-restful
 mysql-connector-python
+Flask-Cors
 
 # werkzeug 2.1.0 causes args = parser.parse_args() to return a 400
 # https://github.com/flask-restful/flask-restful/issues/936

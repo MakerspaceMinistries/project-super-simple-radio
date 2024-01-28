@@ -2,6 +2,8 @@ from flask import Flask
 from flask_restful import Api
 import os
 import datetime
+from flask_cors import CORS
+
 
 from endpoints.radios import RadioEndpoint, RadiosEndpoint
 from endpoints.radio_device_interface_v1_0 import RadioDeviceInterface_v1_0_Endpoint
@@ -16,11 +18,12 @@ app = Flask(__name__)
 secret_key = os.environ.get("FLASK_SECRET_KEY")
 app.secret_key = bytes(secret_key, "utf-8").decode("unicode_escape")
 app.config["PERMANENT_SESSION_LIFETIME"] = datetime.timedelta(days=365)
-
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 api = Api(app)
 api.init_app(app)
 
+CORS(app, supports_credentials=True)
 
 @app.route("/")
 def hello():

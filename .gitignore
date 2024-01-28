@@ -32,3 +32,5 @@ station-configuration-helm-chart/secrets.yaml
 *.FCBak
 
 station-configuration-client/.vscode/
+
+station-configuration-api/SECRETS.sh
