@@ -1,5 +1,7 @@
 <template>
-  <div>Home</div>
+  <div>Support</div>
 </template>
 
 <script setup></script>
+
+<style scoped></style>
