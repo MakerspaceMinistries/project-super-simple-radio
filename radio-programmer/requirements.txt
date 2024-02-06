@@ -1,0 +1,5 @@
+pyserial
+esptool
+requests
+opencv-python
+pyzbar
