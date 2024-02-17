@@ -1,0 +1,21 @@
+a:link {
+    color: unset;
+    text-decoration-style:dotted ;
+    text-decoration-thickness: 0.1rem;
+  }
+  
+  a:visited {
+    color: unset;
+  }
+  
+  a:hover {
+    color: unset;
+  }
+  
+  a:active {
+    color: unset;
+  }
+  
+  a:link, a:visited {
+    
+  }

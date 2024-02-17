@@ -12,8 +12,6 @@ COPY ./app /app
 
 WORKDIR /app
 
-RUN chmod +x gunicorn.sh
-
 EXPOSE 80
 
-CMD ["/app/gunicorn.sh"]
+CMD ["gunicorn", "--chdir", "/app", "main:app", "-w", "5", "-b", "0.0.0.0:80", "--timeout", "3600"]
