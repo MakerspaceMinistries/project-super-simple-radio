@@ -1,7 +1,7 @@
 api:
   name: ssr-config-api
   replicas: 1
-  path: /api/*
+  path: /api/
   image: jaketeater/super-simple-radio-station-config-api
   imageTag: latest
   containerPort: 80
