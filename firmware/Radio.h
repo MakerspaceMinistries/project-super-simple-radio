@@ -7,6 +7,12 @@
 
 /*
 
+
+TODO 
+  - Make sure the code is safe for millis rollover https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
+  - In the if statement for reconnecting, make sure the 2000 milli delay is appropriate for the audio library's connecting timeout
+
+
 MANUAL TESTS:
 
   Setup:
@@ -107,6 +113,7 @@ struct RadioConfig {
 class Radio {
   unsigned long m_last_status_check_ = 0;
   unsigned long m_last_remote_config_retrieved_ = 0;
+  unsigned long m_last_reconnection_attempt = 0;
 
   /*
 
@@ -443,6 +450,19 @@ void Radio::debug_mode_loop() {
     Serial.printf("lps=%d\n", lps);
 
     m_last_debug_status_update_ = millis();
+
+    Serial.print("Heap: ");
+    Serial.print(esp_get_free_heap_size());
+    Serial.print(':');
+    Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+
+    // These all appear to repeat the same data
+    // Serial.print(':');
+    // Serial.print(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    // Serial.print(':');
+    // Serial.print(heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+    // Serial.print(':');
+    // Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
   }
 }
 
@@ -530,15 +550,37 @@ bool Radio::stream_is_running() {
 
 void Radio::loop() {
 
+
+  /*
+
+Try 
+  - downgrade audio library? Check libs on both computers??? Maybe laptop has a bad lib?
+
+  - serial only in debug mode, as was before (not even enabled)
+  - Don't update config?? But it was playing when it was updated....
+  - decrease size of arduino json - and just do small updates at once, no need for large. just one k/v at a time...
+  - decrease number of strings? Esp any string manipulation? Watch the scope of the strings
+
+  - Big drop in heap_caps_get_largest_free_block(MALLOC_CAP_DMA) when changing channels. - it uses 4 strings...
+
+  - does reconnect loop interfer with checking wifi??   MAYBE BLOCKING IS BAD???
+
+*/
+
+
   audio->loop();
 
-  handle_serial_input_();
+  while (Serial.available() > 0) {
+    handle_serial_input_();
+  }
 
   if (m_debug_mode) {
     debug_mode_loop();
   }
 
   if (millis() > m_last_status_check_ + m_radio_config->status_check_interval_ms) {
+
+    m_last_status_check_ = millis();
 
     /*                                   */
     /* Handle the WiFi connection status */
@@ -632,14 +674,25 @@ void Radio::loop() {
       // Set the LED status.
       if (m_reconnecting_to_stream) {
         m_led_status.set_status(RADIO_STATUS_351_STREAM_CONNECTION_LOST_RECONNECTING);
-        // Delay a few seconds before reconnecting so as not to overwhelm a server.
-        // TODO - make this not blocking
-        delay(5000);
       } else {
         m_led_status.set_status(RADIO_STATUS_102_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_300_YELLOW_WARNING);
       }
 
-      connect_to_stream_host();
+      // If it is a reconnect, only attempt if more than 2 seconds after last reconnecting attempt - giving 2 seconds to attempt a connection and fill the streaming buffer (making stream_is_running() true).
+      if (m_reconnecting_to_stream && millis() - 2000 > m_last_reconnection_attempt) {
+        m_last_reconnection_attempt = millis();
+
+        // TODO the amount of time to wait since the last reconnection should relate to the audio library's timeout for connections. 2000 millis is just what seems right.
+        // Stop any previous connection
+        audio->stopSong();
+        // Connect
+        connect_to_stream_host();
+      }
+
+      // If this isn't a reconnect, then connect
+      if (!m_reconnecting_to_stream) {
+        connect_to_stream_host();
+      }
     }
   }
 }
