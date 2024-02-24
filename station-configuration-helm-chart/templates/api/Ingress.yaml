@@ -12,7 +12,7 @@ spec:
     - host: {{ .Values.api.host }}
       http:
         paths:
-          - path: /
+          - path: {{ .Values.api.path }}
             pathType: Prefix
 
             # https://kubernetes.io/docs/reference/kubernetes-api/service-resources/ingress-v1/#IngressBackend
