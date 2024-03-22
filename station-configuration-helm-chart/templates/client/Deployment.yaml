@@ -1,0 +1,42 @@
+# https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.client.name }}-deployment
+  labels:
+    app: {{ .Values.client.name }}-label
+
+# https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/#DeploymentSpec
+spec:
+  replicas: {{ .Values.client.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.client.name }}-label
+
+  # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-template-v1/#PodTemplateSpec
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.client.name }}-label
+
+    # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#PodSpec
+    spec:
+
+      # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Container
+      containers:
+      - name: {{ .Values.client.name }}-container
+        image: {{ .Values.client.image }}:{{ .Values.client.imageTag }}
+
+        imagePullPolicy: Always
+        
+        ports:
+        - containerPort: {{ .Values.client.containerPort }}
+
+        # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.client.containerPort }}
+          initialDelaySeconds: 7
+          periodSeconds: 3
+          timeoutSeconds: 2

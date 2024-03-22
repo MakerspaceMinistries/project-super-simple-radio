@@ -1,7 +1,19 @@
 api:
   name: ssr-config-api
   replicas: 1
+  path: /api/
   image: jaketeater/super-simple-radio-station-config-api
+  imageTag: latest
+  containerPort: 80
+  servicePort: 80
+  ingressPort: 80
+  host: config.acc-radio.raiotech.com
+
+client:
+  name: ssr-client
+  replicas: 1
+  path: /
+  image: jaketeater/super-simple-radio-configuration-client
   imageTag: latest
   containerPort: 80
   servicePort: 80
