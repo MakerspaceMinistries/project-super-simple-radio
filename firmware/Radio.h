@@ -102,7 +102,7 @@ struct RadioConfig {
   // Intervals
   int debug_status_update_interval_ms = 5000;
   int status_check_interval_ms = 50;
-  int wifi_disconnect_timeout_ms = 900;
+  int wifi_disconnect_timeout_ms = 900000;
 
   // Remote Config
   bool remote_config = false;
