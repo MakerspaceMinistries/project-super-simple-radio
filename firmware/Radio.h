@@ -102,6 +102,7 @@ struct RadioConfig {
   // Intervals
   int debug_status_update_interval_ms = 5000;
   int status_check_interval_ms = 50;
+  int wifi_disconnect_timeout_ms = 900;
 
   // Remote Config
   bool remote_config = false;
@@ -114,6 +115,7 @@ class Radio {
   unsigned long m_last_status_check_ = 0;
   unsigned long m_last_remote_config_retrieved_ = 0;
   unsigned long m_last_reconnection_attempt = 0;
+  unsigned long m_last_wifi_connected = 0;
 
   /*
 
@@ -588,16 +590,17 @@ Try
 
     if (WiFi.isConnected()) {
       m_led_status.clear_status(RADIO_STATUS_400_WIFI_CONNECTION_LOST);
+      m_last_wifi_connected = millis();
     } else {
       if (m_debug_mode) Serial.println("Reconnecting to WiFi...");
       m_led_status.set_status(RADIO_STATUS_400_WIFI_CONNECTION_LOST);
-      WiFi.disconnect();
-      WiFi.reconnect();
 
-      // Sleep to allow it to reconnect before triggering another disconnect.
-      delay(10000);
+      // If it's been more than wifi_disconnect_timeout_ms since it's been connected to wifi, restart the esp.
+      if (millis() > m_last_wifi_connected + wifi_disconnect_timeout_ms) {
+        return ESP.restart();
+      }
 
-      return;
+      return WiFi.reconnect();
     }
 
     /*                                              */
