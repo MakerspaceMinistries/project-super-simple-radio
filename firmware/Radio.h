@@ -596,11 +596,12 @@ Try
       m_led_status.set_status(RADIO_STATUS_400_WIFI_CONNECTION_LOST);
 
       // If it's been more than wifi_disconnect_timeout_ms since it's been connected to wifi, restart the esp.
-      if (millis() > m_last_wifi_connected + wifi_disconnect_timeout_ms) {
-        return ESP.restart();
+      if (millis() > m_last_wifi_connected + m_radio_config->wifi_disconnect_timeout_ms) {
+        ESP.restart();
+        return;
       }
-
-      return WiFi.reconnect();
+      WiFi.reconnect();
+      return;
     }
 
     /*                                              */
