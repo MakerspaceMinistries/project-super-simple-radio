@@ -15,7 +15,10 @@ def extract_uuid(s):
 def detect_and_decode_qr():
     # Initialize the webcam
     # Adding cv2.CAP_DSHOW increased the init speed
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    print("Connecting to camera: 0")
+    # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(0)
+    print("Connected")
     cap.set(3, 1920)
     cap.set(4, 1080)
     
@@ -44,8 +47,8 @@ def detect_and_decode_qr():
                 uuid = extract_uuid(data)
                 print(f"Found: {uuid}, {data}")
                 return uuid, data
-    except:
-        pass
+    except Exception as e:
+        print("Trying again: ", e, flush=True)
     finally:
         # When everything done, release the capture
         cap.release()
