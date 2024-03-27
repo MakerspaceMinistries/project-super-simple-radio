@@ -102,7 +102,8 @@ struct RadioConfig {
   // Intervals
   int debug_status_update_interval_ms = 5000;
   int status_check_interval_ms = 50;
-  int wifi_disconnect_timeout_ms = 900000;
+  int wifi_disconnect_timeout_ms = 300000;  // 5 minutes
+  int reconnecting_timeout_ms = 300000;     // 5 minutes
 
   // Remote Config
   bool remote_config = false;
@@ -116,6 +117,7 @@ class Radio {
   unsigned long m_last_remote_config_retrieved_ = 0;
   unsigned long m_last_reconnection_attempt = 0;
   unsigned long m_last_wifi_connected = 0;
+  unsigned long m_last_good_connection = 0;
 
   /*
 
@@ -661,6 +663,7 @@ Try
     if (m_play_input == true && stream_is_running()) {
       m_reconnecting_to_stream = false;
       m_stream_connect_established = true;
+      m_last_good_connection = millis();
 
       if (audio->inBufferFilled() > 0) {
         // Once there is something in the buffer (ie: when more than just a connection to the host is made) update the status
@@ -682,8 +685,8 @@ Try
         m_led_status.set_status(RADIO_STATUS_102_INITIAL_STREAMING_CONNECTION, LED_STATUS_LEVEL_300_YELLOW_WARNING);
       }
 
-      // If it is a reconnect, only attempt if more than 2 seconds after last reconnecting attempt - giving 2 seconds to attempt a connection and fill the streaming buffer (making stream_is_running() true).
-      if (m_reconnecting_to_stream && millis() - 2000 > m_last_reconnection_attempt) {
+      // If it is a reconnect, only attempt if more than 5 seconds after last reconnecting attempt - giving 2 seconds to attempt a connection and fill the streaming buffer (making stream_is_running() true).
+      if (m_reconnecting_to_stream && millis() - 5000 > m_last_reconnection_attempt) {
         m_last_reconnection_attempt = millis();
 
         // TODO the amount of time to wait since the last reconnection should relate to the audio library's timeout for connections. 2000 millis is just what seems right.
@@ -696,6 +699,13 @@ Try
       // If this isn't a reconnect, then connect
       if (!m_reconnecting_to_stream) {
         connect_to_stream_host();
+      }
+
+      // If the stream is reconnecting and the stream has not been seen for more than the time out, restart the esp
+      // This could count retries in the block above? But this works as well.
+      if (m_reconnecting_to_stream && m_last_good_connection + m_radio_config->reconnecting_timeout_ms < millis()) {
+        ESP.restart();
+        return;
       }
     }
   }
