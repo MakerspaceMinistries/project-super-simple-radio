@@ -43,7 +43,7 @@ States:
   - Red (blinking)      LED_STATUS_ERROR_BLINKING       error (blinking)
 
 */
-#define FIRMWARE_VERSION "v1.0.0-beta.4"
+#define FIRMWARE_VERSION "v1.0.0-beta.5"
 
 #include <WiFiManager.h>
 #include "Audio.h"
