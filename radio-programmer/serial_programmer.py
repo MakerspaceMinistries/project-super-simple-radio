@@ -4,7 +4,11 @@
 # Examples:
 
 # Auto detect the serial port and write firmware.
-# python .\serial_programmer.py write_firmware -d --firmware-version v1.0.0-beta.2
+# python serial_programmer.py write_firmware -d --firmware-version v1.0.0-beta.2
+
+# Auto detect the serial port and create from a config file.
+# python serial_programmer.py create -d --file settings.json
+
 
 import serial
 import json
@@ -43,7 +47,9 @@ def read_config(ser):
     ser.flush()
     ser.write("{}".encode())
     while True:
-        sleep(0.1)
+        ser.write("{}".encode())
+        sleep(0.25)
+        print('.', end='', flush=True)
         data = ser.read_all().decode().strip()
         if data:
             print(data, flush=True)
@@ -98,7 +104,7 @@ def write_to_serial(ser, payload):
     # The encode() method converts the string to bytes, which is required by the write() method
     print(f"Writing: {payload}")
     ser.write(payload.encode())
-    sleep(0.1)
+    sleep(0.2)
 
 
 def update_radio(ser, args, radio_id):
@@ -140,10 +146,16 @@ if __name__ == '__main__':
     if args.file:
         load_settings_file(args)
 
+    ignore_ports = ['/dev/ttyS0']
     if args.auto_detect_serial_port:
-        port = serial_ports()[0]
+        for p in serial_ports():
+            if p not in ignore_ports:
+                port = p
+                break
     else:
         port = args.target
+
+    print(f'Using Port: {port}')
 
     # THERE SHOULD ONLY BE ONE SERIAL CONNECTION SO IT DOESN'T REBOOT
     # It will reboot entering/leaving the connection.
