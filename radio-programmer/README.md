@@ -1,3 +1,9 @@
+# Example Commands #
+
+**Write Firmware**
+
+python serial_programmer.py write_firmware -V v1.0.0-beta.6 -t /dev/ttyACM0
+
 # Installing Firmware #
 
 By default, the ESP32S3s cannot be programmed via the USB port. This needs to be enabled in firmware by writing the firmware over a serial connection.
