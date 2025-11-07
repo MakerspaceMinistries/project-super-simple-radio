@@ -36,7 +36,7 @@ parser.add_argument('-n', '--network', type=int, help='network_id of the network
 parser.add_argument('-p', '--password', type=str, help='Password for the configuration server.')
 parser.add_argument('-r', '--remote-config-background-retrieval-interval', default=43200000, type=int, help='remote_config_background_retrieval_interval')
 parser.add_argument('-s', '--default-station', default=None, type=str, help='Default station to be written into position 0.')
-parser.add_argument('-t', '--target', default=None, type=str, help='Target device to write to. Default: /dev/ACM0')
+parser.add_argument('-t', '--target', default=None, type=str, help='Target device to write to. Default: /dev/ttyACM0')
 parser.add_argument('-u', '--user', type=str, help='User name for the configuration server.')
 parser.add_argument('-V', '--firmware-version', type=str, help='Version used when writing firmware. Ex: v1.0.0')
 parser.add_argument('-w', '--wifi', action='store_true', help='Configure the radio to connect to the default WiFi Network.')
