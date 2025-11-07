@@ -102,8 +102,9 @@ struct RadioConfig {
   // Intervals
   int debug_status_update_interval_ms = 5000;
   int status_check_interval_ms = 50;
-  int wifi_disconnect_timeout_ms = 300000;  // 5 minutes
-  int reconnecting_timeout_ms = 300000;     // 5 minutes
+  int wifi_disconnect_timeout_ms = 300000;      // 5 minutes
+  int wifi_init_disconnect_timeout_ms = 900000; // 15 minutes (If it's in WiFi setup mode for 15 mins, restart. It can enter WiFi setup mode if there is a power outage and the radio boots before the router. )
+    int reconnecting_timeout_ms = 300000;       // 5 minutes
 
   // Remote Config
   bool remote_config = false;
@@ -380,6 +381,12 @@ void Radio::init() {
     // While the WiFi manager is active, handle its loop, as well as serial input.
     m_wifi_manager->process();
     handle_serial_input_();
+
+    // If it's been more than wifi_disconnect_timeout_ms since it's been connected to wifi, restart the esp.
+    if (millis() > m_radio_config->wifi_init_disconnect_timeout_ms) {
+      ESP.restart();
+      return;
+    }
   }
 
   // WiFi is connected, clear the code, if set.

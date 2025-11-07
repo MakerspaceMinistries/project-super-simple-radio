@@ -1,57 +1,76 @@
+"""QR code detection via webcam.
+
+Linux-friendly camera initialization with auto-detection of a working
+video device using the V4L2 backend.
+"""
+
 #  pip install opencv-python pyzbar
 import cv2
 import re
 from pyzbar.pyzbar import decode
 
+
 def extract_uuid(s):
     """
-    Extracts a UUID from a given string. 
+    Extracts a UUID from a given string.
     Returns the UUID as a string if found, otherwise returns None.
     """
     uuid_regex = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     match = re.search(uuid_regex, s)
     return match.group(0) if match else None
 
-def detect_and_decode_qr():
-    # Initialize the webcam
-    # Adding cv2.CAP_DSHOW increased the init speed
-    print("Connecting to camera: 0")
-    # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    cap = cv2.VideoCapture(0)
-    print("Connected")
-    cap.set(3, 1920)
-    cap.set(4, 1080)
-    
-    try:
-        # Loop to continuously to get frames from the webcam
-        while True:
-            # Capture a single frame
-            ret, frame = cap.read()
 
-            # If frame is read correctly ret is True
+def _open_first_working_camera(preferred_indices=(0, 1, 2, 3)):
+    """
+    Try common camera indices with the V4L2 backend and return an opened
+    VideoCapture and the index if successful.
+    """
+    for idx in preferred_indices:
+        print(f"Trying camera index: {idx}")
+        cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+        if cap is None or not cap.isOpened():
+            if cap is not None:
+                cap.release()
+            continue
+        # Validate we can read at least one frame
+        ok, _ = cap.read()
+        if ok:
+            print(f"Connected to camera index: {idx}")
+            return cap, idx
+        cap.release()
+    raise RuntimeError("No working camera found (tried indices 0-3)")
+
+
+def detect_and_decode_qr():
+    # Initialize the webcam (auto-detect a working device)
+    cap, cam_idx = _open_first_working_camera()
+
+    # Set desired resolution (may be ignored by some drivers)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+    try:
+        while True:
+            ret, frame = cap.read()
             if not ret:
-                continue  # Skip the rest of the code and try again
-            
-            frame = cv2.flip(frame, 1) 
-            cv2.imshow('Video Feed', frame)
+                continue
+
+            frame = cv2.flip(frame, 1)
+            cv2.imshow(f"Video Feed (camera {cam_idx})", frame)
             cv2.waitKey(1)
 
-            # Try to decode any QR codes in the image
             qr_codes = decode(frame)
-
-            # If at least one QR code is detected
             if qr_codes:
-                # Decode the QR code and return the data
-                cv2.destroyAllWindows() 
                 data = qr_codes[0].data.decode('utf-8')
                 uuid = extract_uuid(data)
                 print(f"Found: {uuid}, {data}")
+                cv2.destroyAllWindows()
                 return uuid, data
     except Exception as e:
         print("Trying again: ", e, flush=True)
     finally:
-        # When everything done, release the capture
         cap.release()
+        cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     # Example usage:
